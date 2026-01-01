@@ -1625,44 +1625,200 @@ export default function MarketingDashboard() {
           {/* Comparison View */}
           {viewMode === 'comparison' && data && data.channels.length > 0 && (
             <div className="space-y-8">
+              {/* Channel Summary Cards with Cost Metrics */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {(() => {
                   const filtered = data.channels.filter((ch) => compareChannels.has(ch.name));
                   const maxLeads = Math.max(...filtered.map((c) => c.allTimeTotal));
-                  const calcVsBest = (val: number, max: number) =>
-                    max > 0 ? ((val - max) / max) * 100 : 0;
 
-                  return filtered.map((ch) => (
-                    <div
-                      key={ch.name}
-                      className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
-                    >
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">{ch.name}</h3>
-                      <div className="text-3xl font-bold text-blue-700 mb-2">{ch.allTimeTotal}</div>
-                      <div className="text-sm text-gray-500">Total Leads</div>
-                      {filtered.length > 1 && (
-                        <div
-                          className={`text-sm mt-2 font-medium ${
-                            ch.allTimeTotal === maxLeads ? 'text-green-600' : 'text-red-600'
-                          }`}
-                        >
-                          {ch.allTimeTotal === maxLeads
-                            ? 'Best'
-                            : `${calcVsBest(ch.allTimeTotal, maxLeads).toFixed(0)}% vs best`}
+                  // Build cost data for comparison
+                  const channelCostMap = new Map<string, { spend: number; clients: number; costPerLead: number; costPerAcquisition: number }>();
+                  filtered.forEach((ch) => {
+                    const channel = channels.find((c) => c.name === ch.name);
+                    const channelId = channel?.id || '';
+                    const channelStats = monthlyStats.filter((s) => s.channelId === channelId);
+                    const totalSpend = channelStats.reduce((sum, s) => sum + s.spend, 0);
+                    const totalClients = channelStats.reduce((sum, s) => sum + s.clientsClosed, 0);
+                    const costPerLead = ch.allTimeTotal > 0 ? totalSpend / ch.allTimeTotal : 0;
+                    const costPerAcquisition = totalClients > 0 ? totalSpend / totalClients : 0;
+                    channelCostMap.set(ch.name, { spend: totalSpend, clients: totalClients, costPerLead, costPerAcquisition });
+                  });
+
+                  const costsWithData = Array.from(channelCostMap.values()).filter(c => c.costPerLead > 0);
+                  const bestCPL = costsWithData.length > 0 ? Math.min(...costsWithData.map(c => c.costPerLead)) : 0;
+                  const bestCAC = costsWithData.filter(c => c.costPerAcquisition > 0).length > 0
+                    ? Math.min(...costsWithData.filter(c => c.costPerAcquisition > 0).map(c => c.costPerAcquisition))
+                    : 0;
+
+                  return filtered.map((ch) => {
+                    const costs = channelCostMap.get(ch.name)!;
+                    return (
+                      <div
+                        key={ch.name}
+                        className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
+                      >
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">{ch.name}</h3>
+
+                        {/* Leads */}
+                        <div className="mb-4">
+                          <div className="text-3xl font-bold text-blue-700">{ch.allTimeTotal}</div>
+                          <div className="text-sm text-gray-500">Total Leads</div>
+                          {filtered.length > 1 && (
+                            <div className={`text-xs mt-1 font-medium ${ch.allTimeTotal === maxLeads ? 'text-green-600' : 'text-gray-500'}`}>
+                              {ch.allTimeTotal === maxLeads ? 'Most Leads' : `${((ch.allTimeTotal - maxLeads) / maxLeads * 100).toFixed(0)}% vs best`}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  ));
+
+                        {/* Cost Metrics */}
+                        <div className="border-t border-gray-200 pt-4 space-y-3">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-500">Total Spend</span>
+                            <span className="text-sm font-medium text-yellow-700">
+                              {costs.spend > 0 ? `$${costs.spend.toFixed(2)}` : '-'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-500">Clients Closed</span>
+                            <span className="text-sm font-medium text-purple-700">
+                              {costs.clients > 0 ? costs.clients : '-'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-500">Cost/Lead</span>
+                            <span className={`text-sm font-medium ${costs.costPerLead === bestCPL && bestCPL > 0 ? 'text-green-600' : 'text-blue-700'}`}>
+                              {costs.costPerLead > 0 ? `$${costs.costPerLead.toFixed(2)}` : '-'}
+                              {costs.costPerLead === bestCPL && bestCPL > 0 && ' (Best)'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-500">Cost/Acquisition</span>
+                            <span className={`text-sm font-medium ${costs.costPerAcquisition === bestCAC && bestCAC > 0 ? 'text-green-600' : 'text-green-700'}`}>
+                              {costs.costPerAcquisition > 0 ? `$${costs.costPerAcquisition.toFixed(2)}` : '-'}
+                              {costs.costPerAcquisition === bestCAC && bestCAC > 0 && ' (Best)'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  });
                 })()}
               </div>
 
+              {/* Channel Cost Comparison Table */}
               {compareChannels.size > 0 && (
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Monthly Comparison</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Channel Cost Comparison</h3>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Channel</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Leads</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider bg-yellow-50">Spend</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider bg-purple-50">Clients</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider bg-blue-50">Cost/Lead</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">Cost/Acq</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">vs Best CPL</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {(() => {
+                          const filtered = data.channels.filter((ch) => compareChannels.has(ch.name));
+                          const channelCostData = filtered.map((ch) => {
+                            const channel = channels.find((c) => c.name === ch.name);
+                            const channelId = channel?.id || '';
+                            const channelStats = monthlyStats.filter((s) => s.channelId === channelId);
+                            const totalSpend = channelStats.reduce((sum, s) => sum + s.spend, 0);
+                            const totalClients = channelStats.reduce((sum, s) => sum + s.clientsClosed, 0);
+                            const costPerLead = ch.allTimeTotal > 0 ? totalSpend / ch.allTimeTotal : 0;
+                            const costPerAcquisition = totalClients > 0 ? totalSpend / totalClients : 0;
+                            return { name: ch.name, leads: ch.allTimeTotal, spend: totalSpend, clients: totalClients, costPerLead, costPerAcquisition };
+                          });
+
+                          const sortedByEfficiency = [...channelCostData].filter(c => c.costPerLead > 0).sort((a, b) => a.costPerLead - b.costPerLead);
+                          const bestCPL = sortedByEfficiency[0]?.costPerLead || 0;
+                          const sortedByCAC = [...channelCostData].filter(c => c.costPerAcquisition > 0).sort((a, b) => a.costPerAcquisition - b.costPerAcquisition);
+                          const bestCAC = sortedByCAC[0]?.costPerAcquisition || 0;
+
+                          return channelCostData.map((ch) => {
+                            const vsBestCPL = ch.costPerLead > 0 && bestCPL > 0
+                              ? ((ch.costPerLead - bestCPL) / bestCPL) * 100
+                              : null;
+
+                            return (
+                              <tr key={ch.name} className="hover:bg-gray-50">
+                                <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{ch.name}</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-900">{ch.leads}</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-yellow-700 bg-yellow-50">
+                                  {ch.spend > 0 ? `$${ch.spend.toFixed(2)}` : '-'}
+                                </td>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-purple-700 bg-purple-50">
+                                  {ch.clients > 0 ? ch.clients : '-'}
+                                </td>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm text-center bg-blue-50">
+                                  {ch.costPerLead > 0 ? (
+                                    <span className={`font-medium ${ch.costPerLead === bestCPL ? 'text-green-600' : 'text-blue-700'}`}>
+                                      ${ch.costPerLead.toFixed(2)}{ch.costPerLead === bestCPL && ' (Best)'}
+                                    </span>
+                                  ) : <span className="text-gray-400">-</span>}
+                                </td>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm text-center bg-green-50">
+                                  {ch.costPerAcquisition > 0 ? (
+                                    <span className={`font-medium ${ch.costPerAcquisition === bestCAC ? 'text-green-600' : 'text-green-700'}`}>
+                                      ${ch.costPerAcquisition.toFixed(2)}{ch.costPerAcquisition === bestCAC && ' (Best)'}
+                                    </span>
+                                  ) : <span className="text-gray-400">-</span>}
+                                </td>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
+                                  {vsBestCPL !== null ? (
+                                    <span className={`font-medium ${vsBestCPL === 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                      {vsBestCPL === 0 ? 'Best' : `+${vsBestCPL.toFixed(0)}%`}
+                                    </span>
+                                  ) : <span className="text-gray-400">-</span>}
+                                </td>
+                              </tr>
+                            );
+                          });
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Lead Trend Comparison Chart */}
+              {compareChannels.size > 0 && (
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Lead Generation Trends</h3>
                   <MarketingComparisonChart
                     channels={data.channels.filter((c) => compareChannels.has(c.name))}
                     dataKey="totalLeads"
                     title="Leads by Month"
+                  />
+                </div>
+              )}
+
+              {/* Cost Metric Trend Charts */}
+              {monthlyCostData.length > 1 && monthlyCostData.some(d => d.spend > 0) && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <MarketingCostMetricChart
+                    data={monthlyCostData}
+                    metric="spend"
+                    title="Total Spend - Monthly Trend"
+                    color="#F59E0B"
+                  />
+                  <MarketingCostMetricChart
+                    data={monthlyCostData}
+                    metric="costPerLead"
+                    title="Cost per Lead - Monthly Trend"
+                    color="#3B82F6"
+                  />
+                  <MarketingCostMetricChart
+                    data={monthlyCostData}
+                    metric="costPerAcquisition"
+                    title="Cost per Acquisition - Monthly Trend"
+                    color="#10B981"
                   />
                 </div>
               )}
