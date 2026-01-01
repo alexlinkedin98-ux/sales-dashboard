@@ -1,0 +1,50 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Sales Representatives
+model SalesRep {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  entries   WeeklyEntry[]
+}
+
+// Weekly Sales Data Entries
+model WeeklyEntry {
+  id                    String   @id @default(cuid())
+
+  // Relationship to sales rep
+  salesRepId            String
+  salesRep              SalesRep @relation(fields: [salesRepId], references: [id], onDelete: Cascade)
+
+  // Week information
+  weekStartDate         DateTime
+  weekLabel             String   // e.g., "January 1 2026"
+
+  // Sales Stages - Input fields
+  introCallsScheduled   Int      @default(0)
+  introCallsTaken       Int      @default(0)
+  accountsAudited       Int      @default(0)
+  proposalsPitched      Int      @default(0)
+  dealsClosed           Int      @default(0)
+
+  // MRR
+  mrr                   Float    @default(0)
+
+  // Timestamps
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Unique constraint - one entry per rep per week
+  @@unique([salesRepId, weekStartDate])
+}
