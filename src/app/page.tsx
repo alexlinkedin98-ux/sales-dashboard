@@ -1,14 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { DashboardData } from '@/lib/types';
+import { DashboardData, WeeklyData } from '@/lib/types';
 import { WeeklyTable } from '@/components/WeeklyTable';
 import { SummaryCards } from '@/components/SummaryCards';
 import { QuarterlySummaryTable } from '@/components/QuarterlySummary';
 import {
   TrendChart,
   ComparisonChart,
-  WeeklyComparisonChart,
 } from '@/components/Charts';
 import { EntryForm } from '@/components/EntryForm';
 import { RepManager } from '@/components/RepManager';
@@ -28,10 +27,22 @@ export default function Dashboard() {
   const [selectedRep, setSelectedRep] = useState<string>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('weekly');
   const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [compareReps, setCompareReps] = useState<Set<string>>(new Set());
 
   // Modal states
   const [showEntryForm, setShowEntryForm] = useState(false);
   const [showRepManager, setShowRepManager] = useState(false);
+  const [editEntry, setEditEntry] = useState<{
+    id: string;
+    salesRepId: string;
+    weekStartDate: string;
+    introCallsScheduled: number;
+    introCallsTaken: number;
+    accountsAudited: number;
+    proposalsPitched: number;
+    dealsClosed: number;
+    mrr: number;
+  } | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -56,6 +67,11 @@ export default function Dashboard() {
           ].month
         );
       }
+      // Initialize compareReps with reps that have data
+      const repsWithData = dashboardData.reps
+        .filter(rep => rep.monthlySummaries.length > 0)
+        .map(rep => rep.name);
+      setCompareReps(new Set(repsWithData));
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -78,6 +94,30 @@ export default function Dashboard() {
 
   const handleEntrySuccess = () => {
     setShowEntryForm(false);
+    setEditEntry(null);
+    fetchData();
+  };
+
+  const handleEditEntry = (entry: WeeklyData, repName: string) => {
+    // Find the rep ID from the name
+    const rep = reps.find(r => r.name === repName);
+    if (!rep) return;
+
+    setEditEntry({
+      id: entry.id,
+      salesRepId: rep.id,
+      weekStartDate: new Date(entry.weekDate).toISOString().split('T')[0],
+      introCallsScheduled: entry.introCallsScheduled,
+      introCallsTaken: entry.introCallsTaken,
+      accountsAudited: entry.accountsAudited,
+      proposalsPitched: entry.proposalsPitched,
+      dealsClosed: entry.dealsClosed,
+      mrr: entry.thisMonthMRR,
+    });
+    setShowEntryForm(true);
+  };
+
+  const handleDeleteEntry = () => {
     fetchData();
   };
 
@@ -127,6 +167,16 @@ export default function Dashboard() {
               )}
             </div>
             <div className="flex gap-2">
+              <a
+                href="/marketing"
+                className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+                </svg>
+                Marketing
+              </a>
               <button
                 onClick={() => setShowRepManager(true)}
                 className="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
@@ -212,27 +262,56 @@ export default function Dashboard() {
 
                 {/* Rep Selector */}
                 <div className="flex items-center gap-4">
-                  <label className="text-sm font-medium text-gray-700">Sales Rep:</label>
-                  <select
-                    value={selectedRep}
-                    onChange={(e) => setSelectedRep(e.target.value)}
-                    className="block w-40 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
-                  >
-                    <option value="all">All Reps</option>
-                    {data?.reps.map((rep) => (
-                      <option key={rep.name} value={rep.name}>
-                        {rep.name}
-                      </option>
-                    ))}
-                  </select>
+                  {viewMode === 'comparison' ? (
+                    <>
+                      <label className="text-sm font-medium text-gray-900">Compare:</label>
+                      <div className="flex items-center gap-3">
+                        {data?.reps.map((rep) => (
+                          <label key={rep.name} className="flex items-center gap-1.5 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={compareReps.has(rep.name)}
+                              onChange={(e) => {
+                                const newSet = new Set(compareReps);
+                                if (e.target.checked) {
+                                  newSet.add(rep.name);
+                                } else {
+                                  newSet.delete(rep.name);
+                                }
+                                setCompareReps(newSet);
+                              }}
+                              className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-900">{rep.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <label className="text-sm font-medium text-gray-900">Sales Rep:</label>
+                      <select
+                        value={selectedRep}
+                        onChange={(e) => setSelectedRep(e.target.value)}
+                        className="block w-40 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm text-gray-900"
+                      >
+                        <option value="all">All Reps</option>
+                        {data?.reps.map((rep) => (
+                          <option key={rep.name} value={rep.name}>
+                            {rep.name}
+                          </option>
+                        ))}
+                      </select>
+                    </>
+                  )}
 
                   {viewMode === 'monthly' && allMonths.length > 0 && (
                     <>
-                      <label className="text-sm font-medium text-gray-700 ml-4">Month:</label>
+                      <label className="text-sm font-medium text-gray-900 ml-4">Month:</label>
                       <select
                         value={selectedMonth}
                         onChange={(e) => setSelectedMonth(e.target.value)}
-                        className="block w-48 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                        className="block w-48 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm text-gray-900"
                       >
                         {allMonths.map((month) => (
                           <option key={month} value={month}>
@@ -261,7 +340,12 @@ export default function Dashboard() {
                       <h2 className="text-xl font-semibold text-gray-900 mb-4">
                         {rep.name} - Weekly Data
                       </h2>
-                      <WeeklyTable data={rep.weeklyData} repName={rep.name} />
+                      <WeeklyTable
+                        data={rep.weeklyData}
+                        repName={rep.name}
+                        onEdit={(entry) => handleEditEntry(entry, rep.name)}
+                        onDelete={handleDeleteEntry}
+                      />
                     </div>
                   ))
                 )}
@@ -271,9 +355,11 @@ export default function Dashboard() {
             {viewMode === 'monthly' && (
               <div className="space-y-8">
                 {filteredReps.map((rep) => {
-                  const monthlySummary = rep.monthlySummaries.find(
+                  const monthIndex = rep.monthlySummaries.findIndex(
                     (m) => m.month === selectedMonth
                   );
+                  const monthlySummary = monthIndex >= 0 ? rep.monthlySummaries[monthIndex] : null;
+                  const previousMonth = monthIndex > 0 ? rep.monthlySummaries[monthIndex - 1] : null;
                   return (
                     <div
                       key={rep.name}
@@ -286,6 +372,7 @@ export default function Dashboard() {
                         <SummaryCards
                           summary={monthlySummary}
                           title={`Monthly Summary for ${selectedMonth}`}
+                          previousSummary={previousMonth}
                         />
                       ) : (
                         <p className="text-gray-500">No data available for this month</p>
@@ -335,40 +422,63 @@ export default function Dashboard() {
 
             {viewMode === 'quarterly' && (
               <div className="space-y-8">
-                {filteredReps.map((rep) => (
-                  <div
-                    key={rep.name}
-                    className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
-                  >
-                    <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                      {rep.name} - Quarterly Performance
-                    </h2>
-                    <QuarterlySummaryTable summaries={rep.quarterlySummaries} repName={rep.name} />
+                {filteredReps.map((rep) => {
+                  const latestIndex = rep.quarterlySummaries.length - 1;
+                  const latestQuarter = latestIndex >= 0 ? rep.quarterlySummaries[latestIndex] : null;
+                  const previousQuarter = latestIndex > 0 ? rep.quarterlySummaries[latestIndex - 1] : null;
+                  return (
+                    <div
+                      key={rep.name}
+                      className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
+                    >
+                      <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                        {rep.name} - Quarterly Performance
+                      </h2>
+                      <QuarterlySummaryTable summaries={rep.quarterlySummaries} repName={rep.name} />
 
-                    {rep.quarterlySummaries.length > 0 && (
-                      <div className="mt-6">
-                        <SummaryCards
-                          summary={rep.quarterlySummaries[rep.quarterlySummaries.length - 1]}
-                          title={`Latest Quarter: ${
-                            rep.quarterlySummaries[rep.quarterlySummaries.length - 1].quarter
-                          }`}
-                        />
-                      </div>
-                    )}
-                  </div>
-                ))}
+                      {latestQuarter && (
+                        <div className="mt-6">
+                          <SummaryCards
+                            summary={latestQuarter}
+                            title={`Latest Quarter: ${latestQuarter.quarter}`}
+                            previousSummary={previousQuarter}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
 
             {viewMode === 'comparison' && data && data.reps.length > 0 && (
               <div className="space-y-8">
-                {/* Rep Comparison Cards */}
+                {/* Rep Comparison Cards - All-Time Totals with relative comparison */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {data.reps.map((rep) => {
-                    const latestMonth =
-                      rep.monthlySummaries[rep.monthlySummaries.length - 1];
-                    if (!latestMonth) return null;
-                    return (
+                  {(() => {
+                    // Calculate all-time totals for each rep
+                    const repTotals = data.reps
+                      .filter(rep => compareReps.has(rep.name))
+                      .filter(rep => rep.monthlySummaries.length > 0)
+                      .map(rep => {
+                        const totalClosed = rep.monthlySummaries.reduce((sum, m) => sum + m.totalClosed, 0);
+                        const totalMRR = rep.monthlySummaries.reduce((sum, m) => sum + m.totalMRR, 0);
+                        const totalCallsTaken = rep.monthlySummaries.reduce((sum, m) => sum + m.totalCallsTaken, 0);
+                        const totalProposals = rep.monthlySummaries.reduce((sum, m) => sum + m.totalProposals, 0);
+                        const closeRate = totalProposals > 0 ? (totalClosed / totalProposals) * 100 : 0;
+                        return { name: rep.name, totalClosed, totalMRR, totalCallsTaken, closeRate };
+                      });
+
+                    // Find the best performer for each metric
+                    const maxMRR = Math.max(...repTotals.map(r => r.totalMRR));
+                    const maxClosed = Math.max(...repTotals.map(r => r.totalClosed));
+                    const maxCloseRate = Math.max(...repTotals.map(r => r.closeRate));
+                    const maxCalls = Math.max(...repTotals.map(r => r.totalCallsTaken));
+
+                    // Calculate percentage vs best
+                    const calcVsBest = (val: number, max: number) => max > 0 ? ((val - max) / max) * 100 : 0;
+
+                    return repTotals.map((rep) => (
                       <div
                         key={rep.name}
                         className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
@@ -376,72 +486,146 @@ export default function Dashboard() {
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">
                           {rep.name}
                           <span className="text-sm font-normal text-gray-500 ml-2">
-                            ({latestMonth.month})
+                            (All Time)
                           </span>
                         </h3>
                         <div className="grid grid-cols-2 gap-4">
                           <div className="bg-blue-50 rounded-lg p-4">
                             <div className="text-xs text-gray-500 uppercase">Deals Closed</div>
                             <div className="text-2xl font-bold text-blue-700">
-                              {latestMonth.totalClosed}
+                              {rep.totalClosed}
                             </div>
+                            {repTotals.length > 1 && (
+                              <div className={`text-xs mt-1 font-medium ${
+                                rep.totalClosed === maxClosed ? 'text-green-600' : 'text-red-600'
+                              }`}>
+                                {rep.totalClosed === maxClosed ? 'Best' : `${calcVsBest(rep.totalClosed, maxClosed).toFixed(0)}% vs best`}
+                              </div>
+                            )}
                           </div>
                           <div className="bg-green-50 rounded-lg p-4">
                             <div className="text-xs text-gray-500 uppercase">Total MRR</div>
                             <div className="text-2xl font-bold text-green-700">
-                              ${latestMonth.totalMRR.toLocaleString()}
+                              ${rep.totalMRR.toLocaleString()}
                             </div>
+                            {repTotals.length > 1 && (
+                              <div className={`text-xs mt-1 font-medium ${
+                                rep.totalMRR === maxMRR ? 'text-green-600' : 'text-red-600'
+                              }`}>
+                                {rep.totalMRR === maxMRR ? 'Best' : `${calcVsBest(rep.totalMRR, maxMRR).toFixed(0)}% vs best`}
+                              </div>
+                            )}
                           </div>
                           <div className="bg-purple-50 rounded-lg p-4">
                             <div className="text-xs text-gray-500 uppercase">Close Rate</div>
                             <div className="text-2xl font-bold text-purple-700">
-                              {latestMonth.closeRate.toFixed(1)}%
+                              {rep.closeRate.toFixed(1)}%
                             </div>
+                            {repTotals.length > 1 && (
+                              <div className={`text-xs mt-1 font-medium ${
+                                rep.closeRate === maxCloseRate ? 'text-green-600' : 'text-red-600'
+                              }`}>
+                                {rep.closeRate === maxCloseRate ? 'Best' : `${calcVsBest(rep.closeRate, maxCloseRate).toFixed(0)}% vs best`}
+                              </div>
+                            )}
                           </div>
                           <div className="bg-orange-50 rounded-lg p-4">
                             <div className="text-xs text-gray-500 uppercase">Calls Taken</div>
                             <div className="text-2xl font-bold text-orange-700">
-                              {latestMonth.totalCallsTaken}
+                              {rep.totalCallsTaken}
                             </div>
+                            {repTotals.length > 1 && (
+                              <div className={`text-xs mt-1 font-medium ${
+                                rep.totalCallsTaken === maxCalls ? 'text-green-600' : 'text-red-600'
+                              }`}>
+                                {rep.totalCallsTaken === maxCalls ? 'Best' : `${calcVsBest(rep.totalCallsTaken, maxCalls).toFixed(0)}% vs best`}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
-                    );
-                  })}
+                    ));
+                  })()}
                 </div>
 
                 {/* Comparison Charts */}
-                {data.reps.some(r => r.monthlySummaries.length > 0) && (
+                {compareReps.size > 0 && data.reps.filter(r => compareReps.has(r.name)).some(r => r.monthlySummaries.length > 0) && (
                   <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                      Side-by-Side Comparison
+                      Monthly Trend Charts
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <ComparisonChart
-                        reps={data.reps}
+                        reps={data.reps.filter(r => compareReps.has(r.name))}
                         dataKey="totalMRR"
-                        title="Monthly MRR Comparison"
+                        title="Total MRR"
                         format="currency"
                       />
                       <ComparisonChart
-                        reps={data.reps}
+                        reps={data.reps.filter(r => compareReps.has(r.name))}
                         dataKey="totalClosed"
-                        title="Deals Closed Comparison"
+                        title="Deals Closed"
                       />
-                      <WeeklyComparisonChart
-                        reps={data.reps}
-                        dataKey="closeRate"
-                        title="Close Rate Trend"
+                      <ComparisonChart
+                        reps={data.reps.filter(r => compareReps.has(r.name))}
+                        dataKey="totalCallsScheduled"
+                        title="Total Calls Scheduled"
+                      />
+                      <ComparisonChart
+                        reps={data.reps.filter(r => compareReps.has(r.name))}
+                        dataKey="totalCallsTaken"
+                        title="Total Calls Taken"
+                      />
+                      <ComparisonChart
+                        reps={data.reps.filter(r => compareReps.has(r.name))}
+                        dataKey="totalAccountsAudited"
+                        title="Accounts Audited"
+                      />
+                      <ComparisonChart
+                        reps={data.reps.filter(r => compareReps.has(r.name))}
+                        dataKey="totalProposals"
+                        title="Total Proposals"
+                      />
+                      <ComparisonChart
+                        reps={data.reps.filter(r => compareReps.has(r.name))}
+                        dataKey="showUpRate"
+                        title="Show Up Rate"
                         format="percent"
                       />
-                      <WeeklyComparisonChart
-                        reps={data.reps}
-                        dataKey="introCallsTaken"
-                        title="Calls Taken Trend"
+                      <ComparisonChart
+                        reps={data.reps.filter(r => compareReps.has(r.name))}
+                        dataKey="closeRate"
+                        title="Close Rate"
+                        format="percent"
+                      />
+                      <ComparisonChart
+                        reps={data.reps.filter(r => compareReps.has(r.name))}
+                        dataKey="mrrPerCallTaken"
+                        title="MRR Per Call"
+                        format="currency"
+                      />
+                      <ComparisonChart
+                        reps={data.reps.filter(r => compareReps.has(r.name))}
+                        dataKey="mrrPerAudit"
+                        title="MRR Per Audit"
+                        format="currency"
+                      />
+                      <ComparisonChart
+                        reps={data.reps.filter(r => compareReps.has(r.name))}
+                        dataKey="mrrPerSales"
+                        title="MRR Per Sale"
+                        format="currency"
+                      />
+                      <ComparisonChart
+                        reps={data.reps.filter(r => compareReps.has(r.name))}
+                        dataKey="acceptanceQualityRate"
+                        title="Acceptance Rate"
+                        format="percent"
                       />
                     </div>
                   </div>
                 )}
+
               </div>
             )}
           </main>
@@ -462,7 +646,11 @@ export default function Dashboard() {
         <EntryForm
           reps={reps}
           onSuccess={handleEntrySuccess}
-          onCancel={() => setShowEntryForm(false)}
+          onCancel={() => {
+            setShowEntryForm(false);
+            setEditEntry(null);
+          }}
+          editData={editEntry || undefined}
         />
       )}
 

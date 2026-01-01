@@ -1,6 +1,7 @@
 // Types matching your spreadsheet structure
 
 export interface WeeklyData {
+  id: string; // entry ID for edit/delete
   week: string; // e.g., "January 1 2026"
   weekDate: Date;
   introCallsScheduled: number;

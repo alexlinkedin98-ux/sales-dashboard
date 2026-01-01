@@ -145,6 +145,7 @@ export async function GET() {
           : 0;
 
         return {
+          id: entry.id,
           week: entry.weekLabel,
           weekDate: entry.weekStartDate,
           introCallsScheduled: entry.introCallsScheduled,

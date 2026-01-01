@@ -63,7 +63,7 @@ export function TrendChart({ data, dataKey, title, color, format = 'number' }: T
 
 interface ComparisonChartProps {
   reps: SalesRepData[];
-  dataKey: 'totalMRR' | 'totalClosed' | 'closeRate' | 'totalCallsTaken';
+  dataKey: 'totalMRR' | 'totalClosed' | 'closeRate' | 'totalCallsTaken' | 'totalCallsScheduled' | 'totalAccountsAudited' | 'totalProposals' | 'showUpRate' | 'acceptanceQualityRate' | 'proposalRate' | 'mrrPerCallTaken' | 'mrrPerAudit' | 'mrrPerSales';
   title: string;
   format?: 'number' | 'currency' | 'percent';
 }
@@ -103,21 +103,23 @@ export function ComparisonChart({ reps, dataKey, title, format = 'number' }: Com
     <div className="bg-white p-4 rounded-lg border border-gray-200">
       <h4 className="text-sm font-medium text-gray-700 mb-4">{title}</h4>
       <ResponsiveContainer width="100%" height={250}>
-        <BarChart data={chartData}>
+        <LineChart data={chartData}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="month" tick={{ fontSize: 10 }} />
           <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => formatValue(v)} />
           <Tooltip formatter={(value) => formatValue(value as number)} />
           <Legend />
           {reps.map((rep, index) => (
-            <Bar
+            <Line
               key={rep.name}
+              type="monotone"
               dataKey={rep.name}
-              fill={colors[index % colors.length]}
-              radius={[4, 4, 0, 0]}
+              stroke={colors[index % colors.length]}
+              strokeWidth={2}
+              dot={{ fill: colors[index % colors.length], strokeWidth: 2 }}
             />
           ))}
-        </BarChart>
+        </LineChart>
       </ResponsiveContainer>
     </div>
   );

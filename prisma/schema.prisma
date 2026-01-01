@@ -49,3 +49,60 @@ model WeeklyEntry {
   // Unique constraint - one entry per rep per week
   @@unique([salesRepId, weekStartDate])
 }
+
+// Marketing Channels
+model MarketingChannel {
+  id           String                 @id @default(cuid())
+  name         String                 @unique
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+  entries      MarketingEntry[]
+  monthlyStats MonthlyMarketingStats[]
+}
+
+// Weekly Marketing Data Entries
+model MarketingEntry {
+  id              String           @id @default(cuid())
+
+  // Relationship to marketing channel
+  channelId       String
+  channel         MarketingChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  // Week information
+  weekStartDate   DateTime
+  weekLabel       String   // e.g., "January 1 2026"
+
+  // Leads generated for this week
+  leadsGenerated  Int      @default(0)
+
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Unique constraint - one entry per channel per week
+  @@unique([channelId, weekStartDate])
+}
+
+// Monthly Marketing Stats (spend and clients closed for ROI calculation)
+model MonthlyMarketingStats {
+  id             String           @id @default(cuid())
+
+  // Relationship to marketing channel
+  channelId      String
+  channel        MarketingChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  // Month information (first day of month)
+  monthStartDate DateTime
+  monthLabel     String   // e.g., "January 2026"
+
+  // Financial data
+  spend          Float    @default(0)  // Dollars spent
+  clientsClosed  Int      @default(0)  // Number of clients closed
+
+  // Timestamps
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Unique constraint - one entry per channel per month
+  @@unique([channelId, monthStartDate])
+}

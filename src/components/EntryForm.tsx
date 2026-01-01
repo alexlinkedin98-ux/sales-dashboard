@@ -169,15 +169,15 @@ export function EntryForm({ reps, onSuccess, onCancel, existingEntries = [], edi
   const selectedRepName = reps.find(r => r.id === formData.salesRepId)?.name;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
-      <div className="bg-black rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto border border-gray-700">
+    <div className="fixed inset-0 bg-gray-900/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto border border-gray-200">
         <div className="p-6">
-          <h2 className="text-xl font-semibold text-white mb-4">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">
             {editData ? 'Edit Weekly Entry' : 'Add Weekly Entry'}
           </h2>
 
           {error && (
-            <div className="bg-red-900/50 border border-red-500 text-red-300 px-4 py-3 rounded mb-4">
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
               {error}
             </div>
           )}
@@ -185,7 +185,7 @@ export function EntryForm({ reps, onSuccess, onCancel, existingEntries = [], edi
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Sales Rep */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Sales Rep
               </label>
               <select
@@ -194,7 +194,7 @@ export function EntryForm({ reps, onSuccess, onCancel, existingEntries = [], edi
                 onChange={handleRepChange}
                 required
                 disabled={!!editData}
-                className="w-full rounded-md bg-gray-900 border-gray-600 text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-800 disabled:text-gray-500"
+                className="w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
               >
                 <option value="">Select a rep...</option>
                 {reps.map((rep) => (
@@ -207,7 +207,7 @@ export function EntryForm({ reps, onSuccess, onCancel, existingEntries = [], edi
 
             {/* Week Selection - Dropdown of recent weeks */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Week Starting
               </label>
               <select
@@ -216,7 +216,7 @@ export function EntryForm({ reps, onSuccess, onCancel, existingEntries = [], edi
                 onChange={handleChange}
                 required
                 disabled={!!editData}
-                className="w-full rounded-md bg-gray-900 border-gray-600 text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-800 disabled:text-gray-500"
+                className="w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
               >
                 {recentMondays.map((monday) => {
                   const taken = formData.salesRepId && isWeekTaken(monday.date, formData.salesRepId);
@@ -225,7 +225,7 @@ export function EntryForm({ reps, onSuccess, onCancel, existingEntries = [], edi
                       key={monday.date}
                       value={monday.date}
                       disabled={Boolean(taken && !editData)}
-                      className={taken ? 'text-gray-500' : ''}
+                      className={taken ? 'text-gray-400' : ''}
                     >
                       {monday.label}{taken ? ' - Already entered' : ''}
                     </option>
@@ -240,11 +240,11 @@ export function EntryForm({ reps, onSuccess, onCancel, existingEntries = [], edi
             </div>
 
             {/* Sales Stages */}
-            <div className="border-t border-gray-700 pt-4">
-              <h3 className="text-sm font-medium text-white mb-3">Sales Stages</h3>
+            <div className="border-t border-gray-200 pt-4">
+              <h3 className="text-sm font-medium text-gray-900 mb-3">Sales Stages</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-400 mb-1">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
                     Intro Calls Scheduled
                   </label>
                   <input
@@ -253,11 +253,11 @@ export function EntryForm({ reps, onSuccess, onCancel, existingEntries = [], edi
                     value={formData.introCallsScheduled}
                     onChange={handleChange}
                     min="0"
-                    className="w-full rounded-md bg-gray-900 border-gray-600 text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-400 mb-1">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
                     Intro Calls Taken
                   </label>
                   <input
@@ -266,11 +266,11 @@ export function EntryForm({ reps, onSuccess, onCancel, existingEntries = [], edi
                     value={formData.introCallsTaken}
                     onChange={handleChange}
                     min="0"
-                    className="w-full rounded-md bg-gray-900 border-gray-600 text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-400 mb-1">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
                     Accounts Audited
                   </label>
                   <input
@@ -279,11 +279,11 @@ export function EntryForm({ reps, onSuccess, onCancel, existingEntries = [], edi
                     value={formData.accountsAudited}
                     onChange={handleChange}
                     min="0"
-                    className="w-full rounded-md bg-gray-900 border-gray-600 text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-400 mb-1">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
                     Proposals Pitched
                   </label>
                   <input
@@ -292,11 +292,11 @@ export function EntryForm({ reps, onSuccess, onCancel, existingEntries = [], edi
                     value={formData.proposalsPitched}
                     onChange={handleChange}
                     min="0"
-                    className="w-full rounded-md bg-gray-900 border-gray-600 text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-400 mb-1">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
                     Deals Closed
                   </label>
                   <input
@@ -305,11 +305,11 @@ export function EntryForm({ reps, onSuccess, onCancel, existingEntries = [], edi
                     value={formData.dealsClosed}
                     onChange={handleChange}
                     min="0"
-                    className="w-full rounded-md bg-gray-900 border-gray-600 text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-400 mb-1">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
                     MRR ($)
                   </label>
                   <input
@@ -319,18 +319,18 @@ export function EntryForm({ reps, onSuccess, onCancel, existingEntries = [], edi
                     onChange={handleChange}
                     min="0"
                     step="0.01"
-                    className="w-full rounded-md bg-gray-900 border-gray-600 text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
               </div>
             </div>
 
             {/* Buttons */}
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-700">
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
               <button
                 type="button"
                 onClick={onCancel}
-                className="px-4 py-2 text-sm font-medium text-gray-300 bg-gray-800 rounded-md hover:bg-gray-700 transition-colors"
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
               >
                 Cancel
               </button>
