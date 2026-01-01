@@ -224,7 +224,7 @@ export function EntryForm({ reps, onSuccess, onCancel, existingEntries = [], edi
                     <option
                       key={monday.date}
                       value={monday.date}
-                      disabled={taken && !editData}
+                      disabled={Boolean(taken && !editData)}
                       className={taken ? 'text-gray-500' : ''}
                     >
                       {monday.label}{taken ? ' - Already entered' : ''}
