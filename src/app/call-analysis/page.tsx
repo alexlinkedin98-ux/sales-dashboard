@@ -501,12 +501,12 @@ export default function CallAnalysisDashboard() {
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">
                           {rep.repName}
                         </h3>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-3 gap-3">
                           <div className="text-center">
                             <div className="text-xs text-gray-500 uppercase">
                               Total Calls
                             </div>
-                            <div className="text-2xl font-bold text-indigo-600">
+                            <div className="text-xl font-bold text-indigo-600">
                               {rep.totals.totalCalls}
                             </div>
                           </div>
@@ -514,7 +514,7 @@ export default function CallAnalysisDashboard() {
                             <div className="text-xs text-gray-500 uppercase">
                               Avg AI Score
                             </div>
-                            <div className="text-2xl font-bold text-green-600">
+                            <div className="text-xl font-bold text-green-600">
                               {rep.totals.avgAiScoreOverall?.toFixed(1) || '-'}
                             </div>
                           </div>
@@ -522,21 +522,42 @@ export default function CallAnalysisDashboard() {
                             <div className="text-xs text-gray-500 uppercase">
                               Avg Rep Score
                             </div>
-                            <div className="text-2xl font-bold text-blue-600">
+                            <div className="text-xl font-bold text-blue-600">
                               {rep.totals.avgRepScoreOverall?.toFixed(1) || '-'}
                             </div>
                           </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-gray-100">
                           <div className="text-center">
                             <div className="text-xs text-gray-500 uppercase">
-                              Avg SPIN/Call
+                              Avg SPIN
                             </div>
-                            <div className="text-2xl font-bold text-purple-600">
+                            <div className="text-xl font-bold text-purple-600">
                               {(
                                 rep.totals.avgSituationQuestions +
                                 rep.totals.avgProblemQuestions +
                                 rep.totals.avgImplicationQuestions +
                                 rep.totals.avgNeedPayoffQuestions
                               ).toFixed(1)}
+                            </div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-xs text-gray-500 uppercase">
+                              Avg Challenger
+                            </div>
+                            <div className="text-xl font-bold text-pink-600">
+                              {(
+                                rep.totals.avgChallenges +
+                                rep.totals.avgDataPoints
+                              ).toFixed(1)}
+                            </div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-xs text-gray-500 uppercase">
+                              Avg Insights
+                            </div>
+                            <div className="text-xl font-bold text-cyan-600">
+                              {rep.totals.avgInsights.toFixed(1)}
                             </div>
                           </div>
                         </div>
@@ -556,6 +577,16 @@ export default function CallAnalysisDashboard() {
                       reps={data.reps.filter((r) => compareReps.has(r.repId))}
                       metric="avgRepScoreOverall"
                       title="Rep Score Comparison"
+                    />
+                    <RepComparisonChart
+                      reps={data.reps.filter((r) => compareReps.has(r.repId))}
+                      metric="avgChallenges"
+                      title="Challenger Score Comparison (Challenges + Data Points)"
+                    />
+                    <RepComparisonChart
+                      reps={data.reps.filter((r) => compareReps.has(r.repId))}
+                      metric="avgInsights"
+                      title="Insights Comparison"
                     />
                     <RepComparisonChart
                       reps={data.reps.filter((r) => compareReps.has(r.repId))}

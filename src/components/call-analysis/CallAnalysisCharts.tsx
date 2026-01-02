@@ -195,7 +195,7 @@ export function CallVolumeChart({ trends }: CallVolumeChartProps) {
 
 interface RepComparisonChartProps {
   reps: RepData[];
-  metric: 'avgAiScoreOverall' | 'avgRepScoreOverall' | 'totalCalls';
+  metric: 'avgAiScoreOverall' | 'avgRepScoreOverall' | 'totalCalls' | 'avgChallenges' | 'avgInsights';
   title: string;
 }
 
@@ -215,6 +215,11 @@ export function RepComparisonChart({ reps, metric, title }: RepComparisonChartPr
         if (weekData) {
           if (metric === 'totalCalls') {
             entry[rep.repName] = weekData.totalCalls;
+          } else if (metric === 'avgChallenges') {
+            // Combine challenges + data points for Challenger methodology
+            entry[rep.repName] = (weekData.avgChallenges || 0) + (weekData.avgDataPoints || 0);
+          } else if (metric === 'avgInsights') {
+            entry[rep.repName] = weekData.avgInsights || 0;
           } else {
             entry[rep.repName] = weekData[metric] || 0;
           }
