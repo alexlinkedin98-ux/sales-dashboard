@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 
-const anthropic = new Anthropic();
+function getAnthropicClient() {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    throw new Error('ANTHROPIC_API_KEY environment variable is not set');
+  }
+  return new Anthropic({ apiKey });
+}
 
 const systemPrompt = `You are a sales call analyst expert in three methodologies:
 
@@ -59,6 +65,7 @@ export async function POST(request: Request) {
       );
     }
 
+    const anthropic = getAnthropicClient();
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 1024,
@@ -99,8 +106,9 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error('Error analyzing transcript:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: 'Failed to analyze transcript' },
+      { error: `Failed to analyze transcript: ${errorMessage}` },
       { status: 500 }
     );
   }
