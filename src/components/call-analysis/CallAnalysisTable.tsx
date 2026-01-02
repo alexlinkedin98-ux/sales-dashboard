@@ -229,16 +229,13 @@ export function CallAnalysisTable({
                 Call
               </th>
               <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                CBE
+                Spin Ratio
               </th>
               <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                vs Avg
+                Challenger
               </th>
               <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                SPIN
-              </th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                SPIN Ratio
+                Insights
               </th>
               <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Rep Score
@@ -264,10 +261,20 @@ export function CallAnalysisTable({
                 ? OUTCOME_LABELS[call.outcome]
                 : null;
 
-              const { score: cbe, breakdown } = calculateCBE(call);
-              const cbeColor = getCBEColor(cbe);
-              const vsAvg = cbe - avgCBE;
-              const vsAvgColor = vsAvg >= 0 ? 'text-green-600' : 'text-red-600';
+              // Calculate SPIN percentages for visual bar
+              const totalSPIN = call.situationQuestions + call.problemQuestions + call.implicationQuestions + call.needPayoffQuestions;
+              const sPercent = totalSPIN > 0 ? (call.situationQuestions / totalSPIN) * 100 : 0;
+              const pPercent = totalSPIN > 0 ? (call.problemQuestions / totalSPIN) * 100 : 0;
+              const iPercent = totalSPIN > 0 ? (call.implicationQuestions / totalSPIN) * 100 : 0;
+              const nPercent = totalSPIN > 0 ? (call.needPayoffQuestions / totalSPIN) * 100 : 0;
+
+              const spinRatio = calculateSPINRatio(
+                call.situationQuestions,
+                call.problemQuestions,
+                call.implicationQuestions,
+                call.needPayoffQuestions
+              );
+              const spinColor = spinRatio >= 7 ? 'text-green-600' : spinRatio >= 5 ? 'text-blue-600' : spinRatio >= 3 ? 'text-yellow-600' : 'text-red-600';
 
               return (
                 <tr key={call.id} className="hover:bg-gray-50">
@@ -297,42 +304,36 @@ export function CallAnalysisTable({
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
-                    <div
-                      className={`inline-flex items-center justify-center px-3 py-1 rounded-full font-bold ${cbeColor}`}
-                      title={breakdown}
-                    >
-                      {cbe}
+                  {/* SPIN Ratio with visual bar */}
+                  <td className="px-4 py-3 whitespace-nowrap text-sm">
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="text-xs text-gray-600 font-mono">
+                        {call.situationQuestions}/{call.problemQuestions}/{call.implicationQuestions}/{call.needPayoffQuestions}
+                      </span>
+                      {/* Visual SPIN bar */}
+                      <div
+                        className="w-24 h-2 rounded-full overflow-hidden flex"
+                        title={`S: ${sPercent.toFixed(0)}% | P: ${pPercent.toFixed(0)}% | I: ${iPercent.toFixed(0)}% | N: ${nPercent.toFixed(0)}%`}
+                      >
+                        <div className="bg-blue-500 h-full" style={{ width: `${sPercent}%` }} />
+                        <div className="bg-yellow-500 h-full" style={{ width: `${pPercent}%` }} />
+                        <div className="bg-red-500 h-full" style={{ width: `${iPercent}%` }} />
+                        <div className="bg-green-500 h-full" style={{ width: `${nPercent}%` }} />
+                      </div>
+                      <span className={`text-xs font-medium ${spinColor}`}>
+                        {spinRatio}/10
+                      </span>
                     </div>
                   </td>
+                  {/* Challenger: challenges + data points */}
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
-                    <span className={`font-medium ${vsAvgColor}`}>
-                      {vsAvg >= 0 ? '+' : ''}{vsAvg}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
-                    <div
-                      className="text-xs font-mono text-gray-600 cursor-help"
-                      title={`Situation: ${call.situationQuestions}, Problem: ${call.problemQuestions}, Implication: ${call.implicationQuestions}, Need-Payoff: ${call.needPayoffQuestions}`}
-                    >
-                      {call.situationQuestions}/{call.problemQuestions}/{call.implicationQuestions}/{call.needPayoffQuestions}
+                    <div className="flex flex-col items-center">
+                      <span className="text-gray-900">{call.challengesPresented}c / {call.dataPointsShared}d</span>
                     </div>
                   </td>
+                  {/* Insights */}
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
-                    {(() => {
-                      const spinRatio = calculateSPINRatio(
-                        call.situationQuestions,
-                        call.problemQuestions,
-                        call.implicationQuestions,
-                        call.needPayoffQuestions
-                      );
-                      const spinColor = spinRatio >= 7 ? 'text-green-600' : spinRatio >= 5 ? 'text-blue-600' : spinRatio >= 3 ? 'text-yellow-600' : 'text-red-600';
-                      return (
-                        <span className={`font-medium ${spinColor}`}>
-                          {spinRatio}/10
-                        </span>
-                      );
-                    })()}
+                    <span className="text-gray-900">{call.insightsShared}</span>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
                     {call.repScoreOverall ? (

@@ -13,6 +13,7 @@ import {
   CallVolumeChart,
   ImprovementChart,
   RepComparisonChart,
+  CBETrendChart,
 } from '@/components/call-analysis/CallAnalysisCharts';
 
 interface SalesRep {
@@ -450,6 +451,7 @@ export default function CallAnalysisDashboard() {
                     {/* Charts */}
                     {rep.weeklyTrends.length > 0 && (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <CBETrendChart trends={rep.weeklyTrends} />
                         <ScoreTrendChart
                           trends={rep.weeklyTrends}
                           title={`${rep.repName} - Score Trends`}

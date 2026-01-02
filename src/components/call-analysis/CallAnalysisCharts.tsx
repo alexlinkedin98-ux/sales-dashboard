@@ -44,6 +44,24 @@ interface ScoreTrendChartProps {
   title: string;
 }
 
+// Calculate CBE from weekly averages
+// CBE = (P×2 + I×4 + N×3 + Ch×2 + D×1 + In×2 - situationPenalty) / 30 × 100
+function calculateWeeklyCBE(week: WeeklyTrend): number {
+  const p = week.avgProblemQuestions || 0;
+  const i = week.avgImplicationQuestions || 0;
+  const n = week.avgNeedPayoffQuestions || 0;
+  const ch = week.avgChallenges || 0;
+  const d = week.avgDataPoints || 0;
+  const ins = week.avgInsights || 0;
+  const s = week.avgSituationQuestions || 0;
+
+  const positives = (p * 2) + (i * 4) + (n * 3) + (ch * 2) + (d * 1) + (ins * 2);
+  const situationPenalty = Math.max(0, s - 5) * 0.5;
+  const duration = 30; // Default duration
+
+  return Math.round(((positives - situationPenalty) / duration) * 100);
+}
+
 export function ScoreTrendChart({ trends, title }: ScoreTrendChartProps) {
   const chartData = trends.map((week) => ({
     week: week.weekLabel,
@@ -77,6 +95,74 @@ export function ScoreTrendChart({ trends, title }: ScoreTrendChartProps) {
           />
         </LineChart>
       </ResponsiveContainer>
+    </div>
+  );
+}
+
+interface CBETrendChartProps {
+  trends: WeeklyTrend[];
+}
+
+export function CBETrendChart({ trends }: CBETrendChartProps) {
+  const chartData = trends.map((week, index) => {
+    const cbe = calculateWeeklyCBE(week);
+    const prevCBE = index > 0 ? calculateWeeklyCBE(trends[index - 1]) : cbe;
+    const change = index > 0 && prevCBE > 0 ? ((cbe - prevCBE) / prevCBE * 100) : 0;
+
+    return {
+      week: week.weekLabel,
+      CBE: cbe,
+      'Target (+1%)': index > 0 ? Math.round(prevCBE * 1.01) : cbe,
+      change: change,
+    };
+  });
+
+  // Calculate if meeting 1% improvement goal
+  const latestChange = chartData.length > 1 ? chartData[chartData.length - 1].change : 0;
+  const meetingGoal = latestChange >= 1;
+
+  return (
+    <div className="bg-white p-4 rounded-lg border border-gray-200">
+      <div className="flex justify-between items-center mb-4">
+        <h4 className="text-sm font-medium text-gray-700">CBE Trend (Career Best Effort)</h4>
+        {chartData.length > 1 && (
+          <span className={`text-xs font-medium px-2 py-1 rounded-full ${meetingGoal ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+            {latestChange >= 0 ? '+' : ''}{latestChange.toFixed(1)}% WoW
+          </span>
+        )}
+      </div>
+      <ResponsiveContainer width="100%" height={250}>
+        <LineChart data={chartData}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="week" tick={{ fontSize: 10 }} />
+          <YAxis tick={{ fontSize: 10 }} />
+          <Tooltip
+            formatter={(value, name) => {
+              if (name === 'change') return `${(value as number).toFixed(1)}%`;
+              return value;
+            }}
+          />
+          <Legend />
+          <Line
+            type="monotone"
+            dataKey="CBE"
+            stroke="#8B5CF6"
+            strokeWidth={3}
+            dot={{ fill: '#8B5CF6', strokeWidth: 2, r: 5 }}
+          />
+          <Line
+            type="monotone"
+            dataKey="Target (+1%)"
+            stroke="#D1D5DB"
+            strokeWidth={1}
+            strokeDasharray="5 5"
+            dot={false}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+      <p className="text-xs text-gray-500 mt-2 text-center">
+        Goal: Improve 1% each week (Pat Riley&apos;s Career Best Effort system)
+      </p>
     </div>
   );
 }
