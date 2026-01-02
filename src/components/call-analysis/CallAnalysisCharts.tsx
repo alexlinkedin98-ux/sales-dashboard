@@ -172,32 +172,66 @@ interface SPINDistributionChartProps {
 }
 
 export function SPINDistributionChart({ trends }: SPINDistributionChartProps) {
-  const chartData = trends.map((week) => ({
-    week: week.weekLabel,
-    Situation: week.avgSituationQuestions,
-    Problem: week.avgProblemQuestions,
-    Implication: week.avgImplicationQuestions,
-    'Need-Payoff': week.avgNeedPayoffQuestions,
-  }));
+  const chartData = trends.map((week) => {
+    const total = week.avgSituationQuestions + week.avgProblemQuestions +
+                  week.avgImplicationQuestions + week.avgNeedPayoffQuestions;
+    return {
+      week: week.weekLabel,
+      'S %': total > 0 ? (week.avgSituationQuestions / total) * 100 : 0,
+      'P %': total > 0 ? (week.avgProblemQuestions / total) * 100 : 0,
+      'I %': total > 0 ? (week.avgImplicationQuestions / total) * 100 : 0,
+      'N %': total > 0 ? (week.avgNeedPayoffQuestions / total) * 100 : 0,
+      // Keep raw numbers for tooltip
+      sRaw: week.avgSituationQuestions,
+      pRaw: week.avgProblemQuestions,
+      iRaw: week.avgImplicationQuestions,
+      nRaw: week.avgNeedPayoffQuestions,
+    };
+  });
 
   return (
     <div className="bg-white p-4 rounded-lg border border-gray-200">
-      <h4 className="text-sm font-medium text-gray-700 mb-4">
-        SPIN Questions Distribution
-      </h4>
+      <div className="flex items-center justify-between mb-4">
+        <h4 className="text-sm font-medium text-gray-700">
+          SPIN Ratio Distribution
+        </h4>
+        <div className="flex gap-3 text-xs">
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-blue-400"></span> S
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-yellow-500"></span> P
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-red-500"></span> I
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-green-500"></span> N
+          </span>
+        </div>
+      </div>
       <ResponsiveContainer width="100%" height={250}>
         <BarChart data={chartData}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="week" tick={{ fontSize: 10 }} />
-          <YAxis tick={{ fontSize: 10 }} />
-          <Tooltip formatter={(value) => (value as number).toFixed(1)} />
-          <Legend />
-          <Bar dataKey="Situation" stackId="a" fill="#60A5FA" />
-          <Bar dataKey="Problem" stackId="a" fill="#F59E0B" />
-          <Bar dataKey="Implication" stackId="a" fill="#EF4444" />
-          <Bar dataKey="Need-Payoff" stackId="a" fill="#10B981" />
+          <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `${v}%`} domain={[0, 100]} />
+          <Tooltip
+            formatter={(value, name, props) => {
+              if (typeof value !== 'number') return ['-', String(name)];
+              const rawKey = name === 'S %' ? 'sRaw' : name === 'P %' ? 'pRaw' : name === 'I %' ? 'iRaw' : 'nRaw';
+              const rawValue = props.payload[rawKey] as number;
+              return [`${value.toFixed(0)}% (${rawValue.toFixed(1)} avg)`, String(name).replace(' %', '')];
+            }}
+          />
+          <Bar dataKey="S %" stackId="a" fill="#60A5FA" name="S %" />
+          <Bar dataKey="P %" stackId="a" fill="#F59E0B" name="P %" />
+          <Bar dataKey="I %" stackId="a" fill="#EF4444" name="I %" />
+          <Bar dataKey="N %" stackId="a" fill="#10B981" name="N %" />
         </BarChart>
       </ResponsiveContainer>
+      <p className="text-xs text-gray-500 mt-2 text-center">
+        Goal: Reduce S%, increase I% and N% over time
+      </p>
     </div>
   );
 }

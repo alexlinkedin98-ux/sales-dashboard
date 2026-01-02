@@ -10,7 +10,6 @@ import {
   ScoreTrendChart,
   SPINDistributionChart,
   ChallengerInsightChart,
-  CallVolumeChart,
   ImprovementChart,
   RepComparisonChart,
   CBETrendChart,
@@ -458,7 +457,6 @@ export default function CallAnalysisDashboard() {
                         />
                         <SPINDistributionChart trends={rep.weeklyTrends} />
                         <ChallengerInsightChart trends={rep.weeklyTrends} />
-                        <CallVolumeChart trends={rep.weeklyTrends} />
                         <ImprovementChart trends={rep.weeklyTrends} />
                       </div>
                     )}
