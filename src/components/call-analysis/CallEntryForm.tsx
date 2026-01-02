@@ -368,44 +368,18 @@ export function CallEntryForm({ reps, onSuccess, onCancel, editData }: CallEntry
           {/* Step 2: Self-Assessment */}
           {step === 'self-assess' && (
             <div className="space-y-6">
-              {/* AI Analysis Results Summary */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="text-sm font-medium text-gray-900 mb-3">AI Found:</h3>
-                <div className="grid grid-cols-4 gap-3 mb-3">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600">{formData.situationQuestions}</div>
-                    <div className="text-xs text-gray-500">Situation</div>
+              {/* Info box - AI has analyzed, now self-assess */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start">
+                  <svg className="w-5 h-5 text-blue-600 mt-0.5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                  <div>
+                    <h3 className="text-sm font-medium text-blue-900">AI analysis complete!</h3>
+                    <p className="text-sm text-blue-700 mt-1">
+                      Now rate yourself on each methodology. Be honest - you'll see how the AI scored you after you submit.
+                    </p>
                   </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-yellow-600">{formData.problemQuestions}</div>
-                    <div className="text-xs text-gray-500">Problem</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-red-600">{formData.implicationQuestions}</div>
-                    <div className="text-xs text-gray-500">Implication</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">{formData.needPayoffQuestions}</div>
-                    <div className="text-xs text-gray-500">Need-Payoff</div>
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-3 pt-3 border-t border-gray-200">
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-purple-600">{formData.challengesPresented}</div>
-                    <div className="text-xs text-gray-500">Challenges</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-pink-600">{formData.dataPointsShared}</div>
-                    <div className="text-xs text-gray-500">Data Points</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-cyan-600">{formData.insightsShared}</div>
-                    <div className="text-xs text-gray-500">Insights</div>
-                  </div>
-                </div>
-                <div className="mt-3 pt-3 border-t border-gray-200 text-center">
-                  <span className="text-sm text-gray-600">Total SPIN Questions: </span>
-                  <span className="font-bold text-gray-900">{totalSPIN}</span>
                 </div>
               </div>
 
@@ -500,6 +474,47 @@ export function CallEntryForm({ reps, onSuccess, onCancel, editData }: CallEntry
           {/* Step 3: Compare */}
           {step === 'compare' && aiAnalysis?.scores && (
             <div className="space-y-6">
+              {/* AI Found Metrics - Now revealed */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h3 className="text-sm font-medium text-gray-900 mb-3">AI Found in Your Call:</h3>
+                <div className="grid grid-cols-4 gap-3 mb-3">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-600">{formData.situationQuestions}</div>
+                    <div className="text-xs text-gray-500">Situation</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-yellow-600">{formData.problemQuestions}</div>
+                    <div className="text-xs text-gray-500">Problem</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-red-600">{formData.implicationQuestions}</div>
+                    <div className="text-xs text-gray-500">Implication</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600">{formData.needPayoffQuestions}</div>
+                    <div className="text-xs text-gray-500">Need-Payoff</div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3 pt-3 border-t border-gray-200">
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-purple-600">{formData.challengesPresented}</div>
+                    <div className="text-xs text-gray-500">Challenges</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-pink-600">{formData.dataPointsShared}</div>
+                    <div className="text-xs text-gray-500">Data Points</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-cyan-600">{formData.insightsShared}</div>
+                    <div className="text-xs text-gray-500">Insights</div>
+                  </div>
+                </div>
+                <div className="mt-3 pt-3 border-t border-gray-200 text-center">
+                  <span className="text-sm text-gray-600">Total SPIN Questions: </span>
+                  <span className="font-bold text-gray-900">{totalSPIN}</span>
+                </div>
+              </div>
+
               {/* Score Comparison */}
               <div className="space-y-4">
                 {[
