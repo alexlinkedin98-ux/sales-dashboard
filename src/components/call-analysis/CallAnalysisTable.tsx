@@ -229,13 +229,57 @@ export function CallAnalysisTable({
                 Call
               </th>
               <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Spin Ratio
+                <div className="flex items-center justify-center gap-1">
+                  <span>Spin Ratio</span>
+                  <div className="group relative">
+                    <svg className="w-3.5 h-3.5 text-gray-400 cursor-help" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                    </svg>
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all w-48 z-10 normal-case font-normal">
+                      <div className="font-semibold mb-1">S/P/I/N Questions</div>
+                      <div className="space-y-0.5">
+                        <div><span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-1"></span>S = Situation</div>
+                        <div><span className="inline-block w-2 h-2 rounded-full bg-yellow-500 mr-1"></span>P = Problem</div>
+                        <div><span className="inline-block w-2 h-2 rounded-full bg-red-500 mr-1"></span>I = Implication</div>
+                        <div><span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-1"></span>N = Need-Payoff</div>
+                      </div>
+                      <div className="mt-1 pt-1 border-t border-gray-700 text-gray-300">Higher I & N = better score</div>
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                    </div>
+                  </div>
+                </div>
               </th>
               <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Challenger
+                <div className="flex items-center justify-center gap-1">
+                  <span>Challenger</span>
+                  <div className="group relative">
+                    <svg className="w-3.5 h-3.5 text-gray-400 cursor-help" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                    </svg>
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all w-44 z-10 normal-case font-normal">
+                      <div className="font-semibold mb-1">Challenger Sale</div>
+                      <div><span className="font-medium">c</span> = Challenges presented</div>
+                      <div><span className="font-medium">d</span> = Data points shared</div>
+                      <div className="mt-1 pt-1 border-t border-gray-700 text-gray-300">Push buyer thinking with insights</div>
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                    </div>
+                  </div>
+                </div>
               </th>
               <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Insights
+                <div className="flex items-center justify-center gap-1">
+                  <span>Insights</span>
+                  <div className="group relative">
+                    <svg className="w-3.5 h-3.5 text-gray-400 cursor-help" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                    </svg>
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all w-44 z-10 normal-case font-normal">
+                      <div className="font-semibold mb-1">Insight Selling</div>
+                      <div>Unique perspectives shared that help buyer see their problem differently</div>
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                    </div>
+                  </div>
+                </div>
               </th>
               <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Rep Score
@@ -327,13 +371,21 @@ export function CallAnalysisTable({
                   </td>
                   {/* Challenger: challenges + data points */}
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
-                    <div className="flex flex-col items-center">
+                    <div
+                      className="cursor-help"
+                      title={`${call.challengesPresented} challenge${call.challengesPresented !== 1 ? 's' : ''} presented\n${call.dataPointsShared} data point${call.dataPointsShared !== 1 ? 's' : ''} shared`}
+                    >
                       <span className="text-gray-900">{call.challengesPresented}c / {call.dataPointsShared}d</span>
                     </div>
                   </td>
                   {/* Insights */}
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
-                    <span className="text-gray-900">{call.insightsShared}</span>
+                    <span
+                      className="text-gray-900 cursor-help"
+                      title={`${call.insightsShared} insight${call.insightsShared !== 1 ? 's' : ''} shared`}
+                    >
+                      {call.insightsShared}
+                    </span>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
                     {call.repScoreOverall ? (
