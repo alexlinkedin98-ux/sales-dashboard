@@ -105,6 +105,44 @@ function getCBEColor(score: number): string {
   return 'text-red-600 bg-red-50';
 }
 
+// SPIN Ratio Score calculation based on Rackham's research
+function calculateSPINRatio(s: number, p: number, i: number, n: number): number {
+  const total = s + p + i + n;
+  if (total === 0) return 0;
+
+  const sPercent = (s / total) * 100;
+  const pPercent = (p / total) * 100;
+  const iPercent = (i / total) * 100;
+  const nPercent = (n / total) * 100;
+
+  let score = 5;
+
+  // Situation questions penalty
+  if (sPercent > 60) score -= 3;
+  else if (sPercent > 50) score -= 2.5;
+  else if (sPercent > 40) score -= 2;
+  else if (sPercent > 30) score -= 1;
+  else if (sPercent <= 15) score += 1;
+
+  // Implication questions bonus (most important)
+  if (iPercent >= 25) score += 2;
+  else if (iPercent >= 15) score += 1.5;
+  else if (iPercent >= 10) score += 1;
+  else if (iPercent === 0) score -= 1.5;
+
+  // Need-Payoff questions bonus
+  if (nPercent >= 20) score += 2;
+  else if (nPercent >= 10) score += 1.5;
+  else if (nPercent >= 5) score += 1;
+  else if (nPercent === 0) score -= 1;
+
+  // Problem questions
+  if (pPercent >= 15 && pPercent <= 35) score += 0.5;
+  else if (pPercent === 0) score -= 0.5;
+
+  return Math.min(10, Math.max(1, Math.round(score)));
+}
+
 // Calculate average CBE for trend comparison
 export function calculateAverageCBE(calls: CallData[]): number {
   if (calls.length === 0) return 0;
@@ -200,6 +238,15 @@ export function CallAnalysisTable({
                 SPIN
               </th>
               <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                SPIN Ratio
+              </th>
+              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Rep Score
+              </th>
+              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                AI Score
+              </th>
+              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Outcome
               </th>
               <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -270,6 +317,40 @@ export function CallAnalysisTable({
                     >
                       {call.situationQuestions}/{call.problemQuestions}/{call.implicationQuestions}/{call.needPayoffQuestions}
                     </div>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
+                    {(() => {
+                      const spinRatio = calculateSPINRatio(
+                        call.situationQuestions,
+                        call.problemQuestions,
+                        call.implicationQuestions,
+                        call.needPayoffQuestions
+                      );
+                      const spinColor = spinRatio >= 7 ? 'text-green-600' : spinRatio >= 5 ? 'text-blue-600' : spinRatio >= 3 ? 'text-yellow-600' : 'text-red-600';
+                      return (
+                        <span className={`font-medium ${spinColor}`}>
+                          {spinRatio}/10
+                        </span>
+                      );
+                    })()}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
+                    {call.repScoreOverall ? (
+                      <span className={`font-medium ${call.repScoreOverall >= 7 ? 'text-green-600' : call.repScoreOverall >= 5 ? 'text-blue-600' : 'text-yellow-600'}`}>
+                        {call.repScoreOverall.toFixed(1)}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
+                    {call.aiScoreOverall ? (
+                      <span className={`font-medium ${call.aiScoreOverall >= 7 ? 'text-green-600' : call.aiScoreOverall >= 5 ? 'text-blue-600' : 'text-yellow-600'}`}>
+                        {call.aiScoreOverall.toFixed(1)}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
                     {outcomeInfo ? (
