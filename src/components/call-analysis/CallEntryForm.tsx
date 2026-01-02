@@ -16,6 +16,7 @@ interface CallEntryFormProps {
     salesRepId: string;
     callDate: string;
     callLabel: string;
+    crmLink?: string | null;
     transcript?: string | null;
     situationQuestions: number;
     problemQuestions: number;
@@ -58,7 +59,8 @@ export function CallEntryForm({ reps, onSuccess, onCancel, editData }: CallEntry
   const [formData, setFormData] = useState({
     salesRepId: editData?.salesRepId || (reps.length === 1 ? reps[0].id : ''),
     callDate: editData?.callDate?.split('T')[0] || new Date().toISOString().split('T')[0],
-    callLabel: editData?.callLabel || `Call ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`,
+    callLabel: editData?.callLabel || '',
+    crmLink: editData?.crmLink || '',
     transcript: editData?.transcript || '',
     situationQuestions: editData?.situationQuestions || 0,
     problemQuestions: editData?.problemQuestions || 0,
@@ -117,13 +119,18 @@ export function CallEntryForm({ reps, onSuccess, onCancel, editData }: CallEntry
   );
 
   const handleAnalyzeTranscript = async () => {
-    if (!formData.transcript.trim()) {
-      setError('Please paste a call transcript to analyze');
+    if (!formData.salesRepId) {
+      setError('Please select a sales rep');
       return;
     }
 
-    if (!formData.salesRepId) {
-      setError('Please select a sales rep');
+    if (!formData.callLabel.trim()) {
+      setError('Please enter a call name');
+      return;
+    }
+
+    if (!formData.transcript.trim()) {
+      setError('Please paste a call transcript to analyze');
       return;
     }
 
@@ -319,6 +326,34 @@ export function CallEntryForm({ reps, onSuccess, onCancel, editData }: CallEntry
                     className="w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Call Name
+                </label>
+                <input
+                  type="text"
+                  name="callLabel"
+                  value={formData.callLabel}
+                  onChange={handleChange}
+                  placeholder="e.g., Discovery call with Acme Corp"
+                  className="w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Pipedrive Link <span className="text-gray-400 font-normal">(optional)</span>
+                </label>
+                <input
+                  type="url"
+                  name="crmLink"
+                  value={formData.crmLink}
+                  onChange={handleChange}
+                  placeholder="https://app.pipedrive.com/deal/..."
+                  className="w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                />
               </div>
 
               <div>

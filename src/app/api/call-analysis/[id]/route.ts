@@ -47,6 +47,7 @@ export async function PUT(
       data: {
         callDate: body.callDate ? new Date(body.callDate) : undefined,
         callLabel: body.callLabel,
+        crmLink: body.crmLink,
         transcript: body.transcript,
         situationQuestions: body.situationQuestions,
         problemQuestions: body.problemQuestions,

@@ -115,7 +115,8 @@ model CallAnalysis {
   salesRepId      String
   salesRep        SalesRep @relation(fields: [salesRepId], references: [id], onDelete: Cascade)
   callDate        DateTime
-  callLabel       String   // "Call 1 - Dec 15, 2025"
+  callLabel       String   // Custom name for the call (e.g., "Discovery call with Acme Corp")
+  crmLink         String?  // Link to CRM record (e.g., Pipedrive deal URL)
 
   // Raw transcript (optional, for reference)
   transcript      String?  @db.Text
