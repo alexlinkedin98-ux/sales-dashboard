@@ -36,6 +36,46 @@ const OUTCOME_LABELS: Record<string, { label: string; color: string }> = {
   no_show: { label: 'No Show', color: 'bg-gray-100 text-gray-800' },
 };
 
+// SPIN Ratio visualization component
+function SPINRatioBar({ s, p, i, n }: { s: number; p: number; i: number; n: number }) {
+  const total = s + p + i + n;
+  if (total === 0) return <span className="text-gray-400">-</span>;
+
+  const sPercent = (s / total) * 100;
+  const pPercent = (p / total) * 100;
+  const iPercent = (i / total) * 100;
+  const nPercent = (n / total) * 100;
+
+  // Ideal SPIN ratio: S should be low (~10-20%), P moderate (~20-30%), I and N higher (~25-35% each)
+  // Score based on how well they follow the ideal pattern (less S, more I/N)
+  const ratioScore = Math.min(10, Math.max(1,
+    10 - (sPercent > 40 ? 3 : sPercent > 30 ? 2 : sPercent > 20 ? 1 : 0) +
+    (iPercent >= 15 ? 1 : 0) +
+    (nPercent >= 10 ? 1 : 0) -
+    (nPercent === 0 ? 2 : 0) -
+    (iPercent === 0 ? 1 : 0)
+  ));
+
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div className="flex text-xs font-mono text-gray-600">
+        {s}/{p}/{i}/{n}
+      </div>
+      <div className="w-20 h-2 rounded-full overflow-hidden flex bg-gray-200" title={`S:${sPercent.toFixed(0)}% P:${pPercent.toFixed(0)}% I:${iPercent.toFixed(0)}% N:${nPercent.toFixed(0)}%`}>
+        <div className="bg-blue-400" style={{ width: `${sPercent}%` }} />
+        <div className="bg-yellow-400" style={{ width: `${pPercent}%` }} />
+        <div className="bg-red-400" style={{ width: `${iPercent}%` }} />
+        <div className="bg-green-400" style={{ width: `${nPercent}%` }} />
+      </div>
+      <div className={`text-xs font-medium ${
+        ratioScore >= 7 ? 'text-green-600' : ratioScore >= 5 ? 'text-yellow-600' : 'text-red-600'
+      }`}>
+        {ratioScore.toFixed(0)}/10
+      </div>
+    </div>
+  );
+}
+
 export function CallAnalysisTable({
   calls,
   repName,
@@ -80,7 +120,7 @@ export function CallAnalysisTable({
               Call
             </th>
             <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-              SPIN (S/P/I/N)
+              SPIN Ratio
             </th>
             <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
               Challenger
@@ -141,10 +181,12 @@ export function CallAnalysisTable({
                   </div>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
-                  <span className="font-mono text-gray-700">
-                    {call.situationQuestions}/{call.problemQuestions}/
-                    {call.implicationQuestions}/{call.needPayoffQuestions}
-                  </span>
+                  <SPINRatioBar
+                    s={call.situationQuestions}
+                    p={call.problemQuestions}
+                    i={call.implicationQuestions}
+                    n={call.needPayoffQuestions}
+                  />
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-700">
                   <span className="font-mono">
