@@ -40,7 +40,7 @@ interface CallEntryFormProps {
   };
 }
 
-type Step = 'transcript' | 'self-assess' | 'compare';
+type Step = 'transcript' | 'self-assess' | 'compare' | 'quick-edit';
 
 export function CallEntryForm({ reps, onSuccess, onCancel, editData }: CallEntryFormProps) {
   const [loading, setLoading] = useState(false);
@@ -48,8 +48,9 @@ export function CallEntryForm({ reps, onSuccess, onCancel, editData }: CallEntry
   const [error, setError] = useState<string | null>(null);
 
   // Determine initial step based on editData
+  // If editing an existing call with AI scores, show quick edit mode
   const getInitialStep = (): Step => {
-    if (editData?.aiScoreOverall) return 'compare';
+    if (editData?.aiScoreOverall) return 'quick-edit';
     if (editData?.situationQuestions) return 'self-assess';
     return 'transcript';
   };
@@ -235,53 +236,55 @@ export function CallEntryForm({ reps, onSuccess, onCancel, editData }: CallEntry
           {/* Header with Steps */}
           <div className="mb-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              {editData ? 'Edit Call Analysis' : 'Analyze Sales Call'}
+              {step === 'quick-edit' ? 'Edit Call Details' : editData ? 'Edit Call Analysis' : 'Analyze Sales Call'}
             </h2>
 
-            {/* Step Indicator */}
-            <div className="flex items-center justify-between">
-              {[
-                { key: 'transcript', label: '1. Transcript' },
-                { key: 'self-assess', label: '2. Self-Assess' },
-                { key: 'compare', label: '3. Compare' },
-              ].map((s, i) => (
-                <div key={s.key} className="flex items-center">
-                  <div
-                    className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${
-                      step === s.key
-                        ? 'bg-blue-600 text-white'
-                        : (step === 'self-assess' && s.key === 'transcript') ||
-                          (step === 'compare' && s.key !== 'compare')
-                        ? 'bg-green-500 text-white'
-                        : 'bg-gray-200 text-gray-600'
-                    }`}
-                  >
-                    {(step === 'self-assess' && s.key === 'transcript') ||
-                    (step === 'compare' && s.key !== 'compare') ? (
-                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                        <path
-                          fillRule="evenodd"
-                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    ) : (
-                      i + 1
+            {/* Step Indicator - hidden in quick-edit mode */}
+            {step !== 'quick-edit' && (
+              <div className="flex items-center justify-between">
+                {[
+                  { key: 'transcript', label: '1. Transcript' },
+                  { key: 'self-assess', label: '2. Self-Assess' },
+                  { key: 'compare', label: '3. Compare' },
+                ].map((s, i) => (
+                  <div key={s.key} className="flex items-center">
+                    <div
+                      className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${
+                        step === s.key
+                          ? 'bg-blue-600 text-white'
+                          : (step === 'self-assess' && s.key === 'transcript') ||
+                            (step === 'compare' && s.key !== 'compare')
+                          ? 'bg-green-500 text-white'
+                          : 'bg-gray-200 text-gray-600'
+                      }`}
+                    >
+                      {(step === 'self-assess' && s.key === 'transcript') ||
+                      (step === 'compare' && s.key !== 'compare') ? (
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                          <path
+                            fillRule="evenodd"
+                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      ) : (
+                        i + 1
+                      )}
+                    </div>
+                    <span
+                      className={`ml-2 text-sm ${
+                        step === s.key ? 'text-blue-600 font-medium' : 'text-gray-500'
+                      }`}
+                    >
+                      {s.label}
+                    </span>
+                    {i < 2 && (
+                      <div className="w-12 h-0.5 mx-2 bg-gray-200" />
                     )}
                   </div>
-                  <span
-                    className={`ml-2 text-sm ${
-                      step === s.key ? 'text-blue-600 font-medium' : 'text-gray-500'
-                    }`}
-                  >
-                    {s.label}
-                  </span>
-                  {i < 2 && (
-                    <div className="w-12 h-0.5 mx-2 bg-gray-200" />
-                  )}
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {error && (
@@ -501,6 +504,147 @@ export function CallEntryForm({ reps, onSuccess, onCancel, editData }: CallEntry
                   className="px-6 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700"
                 >
                   See AI Scores
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Quick Edit Mode - for editing existing calls */}
+          {step === 'quick-edit' && editData && (
+            <div className="space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <div className="flex items-start">
+                  <svg className="w-5 h-5 text-blue-600 mt-0.5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                  <div>
+                    <h3 className="text-sm font-medium text-blue-900">Quick Edit</h3>
+                    <p className="text-sm text-blue-700 mt-1">
+                      Update the call details below. To re-analyze the transcript, click "Full Edit".
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Sales Rep
+                  </label>
+                  <select
+                    name="salesRepId"
+                    value={formData.salesRepId}
+                    onChange={handleChange}
+                    required
+                    className="w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  >
+                    <option value="">Select a rep...</option>
+                    {reps.map((rep) => (
+                      <option key={rep.id} value={rep.id}>
+                        {rep.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Call Date
+                  </label>
+                  <input
+                    type="date"
+                    name="callDate"
+                    value={formData.callDate}
+                    onChange={handleChange}
+                    required
+                    className="w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Call Name
+                </label>
+                <input
+                  type="text"
+                  name="callLabel"
+                  value={formData.callLabel}
+                  onChange={handleChange}
+                  placeholder="e.g., Discovery call with Acme Corp"
+                  className="w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Pipedrive Link <span className="text-gray-400 font-normal">(optional)</span>
+                </label>
+                <input
+                  type="url"
+                  name="crmLink"
+                  value={formData.crmLink}
+                  onChange={handleChange}
+                  placeholder="https://app.pipedrive.com/deal/..."
+                  className="w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Outcome
+                </label>
+                <select
+                  name="outcome"
+                  value={formData.outcome}
+                  onChange={handleChange}
+                  className="w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                >
+                  <option value="">Select outcome...</option>
+                  <option value="booked">Booked</option>
+                  <option value="follow_up">Follow-up</option>
+                  <option value="not_interested">Not Interested</option>
+                  <option value="no_show">No Show</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Your Notes <span className="text-gray-400 font-normal">(optional)</span>
+                </label>
+                <textarea
+                  name="repNotes"
+                  value={formData.repNotes}
+                  onChange={handleChange}
+                  rows={2}
+                  placeholder="Any thoughts or takeaways from this call..."
+                  className="w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="flex justify-between gap-3 pt-2">
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={onCancel}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStep('transcript')}
+                    className="px-4 py-2 text-sm font-medium text-purple-700 bg-purple-100 rounded-md hover:bg-purple-200"
+                  >
+                    Full Edit
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={loading}
+                  className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {loading ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             </div>
