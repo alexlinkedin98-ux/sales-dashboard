@@ -469,6 +469,83 @@ export default function CallAnalysisDashboard() {
 
             {viewMode === 'individual' && (
               <div className="space-y-8">
+                {/* Team Summary Card */}
+                {data && data.reps.length > 1 && (
+                  <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-100 p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Team Averages</h3>
+                    <div className="grid grid-cols-3 gap-6">
+                      <div className="text-center">
+                        <div className="text-xs text-gray-500 uppercase mb-1">Team Avg CBE</div>
+                        <div className="text-3xl font-bold text-purple-600">
+                          {(() => {
+                            const allCalls = data.reps.flatMap(r => r.calls);
+                            if (allCalls.length === 0) return '-';
+                            const totalCBE = allCalls.reduce((sum, call) => {
+                              const p = call.problemQuestions || 0;
+                              const i = call.implicationQuestions || 0;
+                              const n = call.needPayoffQuestions || 0;
+                              const ch = call.challengesPresented || 0;
+                              const d = call.dataPointsShared || 0;
+                              const ins = call.insightsShared || 0;
+                              const s = call.situationQuestions || 0;
+                              const positives = (p * 2) + (i * 4) + (n * 3) + (ch * 2) + (d * 1) + (ins * 2);
+                              const penalty = Math.max(0, s - 5) * 0.5;
+                              const duration = call.callDuration || 30;
+                              return sum + Math.round(((positives - penalty) / duration) * 100);
+                            }, 0);
+                            return Math.round(totalCBE / allCalls.length);
+                          })()}
+                        </div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-xs text-gray-500 uppercase mb-1">Team Avg AI Score</div>
+                        <div className="text-3xl font-bold text-green-600">
+                          {data.overall.avgAiScoreOverall?.toFixed(1) || '-'}
+                        </div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-xs text-gray-500 uppercase mb-1">Team Avg SPIN Ratio</div>
+                        <div className="text-3xl font-bold text-blue-600">
+                          {(() => {
+                            const allCalls = data.reps.flatMap(r => r.calls);
+                            if (allCalls.length === 0) return '-';
+                            const totalRatio = allCalls.reduce((sum, call) => {
+                              const s = call.situationQuestions || 0;
+                              const p = call.problemQuestions || 0;
+                              const i = call.implicationQuestions || 0;
+                              const n = call.needPayoffQuestions || 0;
+                              const total = s + p + i + n;
+                              if (total === 0) return sum;
+                              const sP = (s / total) * 100;
+                              const iP = (i / total) * 100;
+                              const nP = (n / total) * 100;
+                              const pP = (p / total) * 100;
+                              let score = 5;
+                              if (sP > 60) score -= 3;
+                              else if (sP > 50) score -= 2.5;
+                              else if (sP > 40) score -= 2;
+                              else if (sP > 30) score -= 1;
+                              else if (sP <= 15) score += 1;
+                              if (iP >= 25) score += 2;
+                              else if (iP >= 15) score += 1.5;
+                              else if (iP >= 10) score += 1;
+                              else if (iP === 0) score -= 1.5;
+                              if (nP >= 20) score += 2;
+                              else if (nP >= 10) score += 1.5;
+                              else if (nP >= 5) score += 1;
+                              else if (nP === 0) score -= 1;
+                              if (pP >= 15 && pP <= 35) score += 0.5;
+                              else if (pP === 0) score -= 0.5;
+                              return sum + Math.min(10, Math.max(1, Math.round(score)));
+                            }, 0);
+                            return (totalRatio / allCalls.length).toFixed(1);
+                          })()}/10
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {filteredReps.map((rep) => (
                   <div
                     key={rep.repId}
