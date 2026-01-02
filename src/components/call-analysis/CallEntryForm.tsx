@@ -39,19 +39,21 @@ interface CallEntryFormProps {
   };
 }
 
-const OUTCOMES = [
-  { value: '', label: 'Select outcome...' },
-  { value: 'booked', label: 'Booked Next Step' },
-  { value: 'follow_up', label: 'Follow-up Needed' },
-  { value: 'not_interested', label: 'Not Interested' },
-  { value: 'no_show', label: 'No Show' },
-];
+type Step = 'transcript' | 'self-assess' | 'compare';
 
 export function CallEntryForm({ reps, onSuccess, onCancel, editData }: CallEntryFormProps) {
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showAiScores, setShowAiScores] = useState(!!editData?.aiScoreOverall);
+
+  // Determine initial step based on editData
+  const getInitialStep = (): Step => {
+    if (editData?.aiScoreOverall) return 'compare';
+    if (editData?.situationQuestions) return 'self-assess';
+    return 'transcript';
+  };
+
+  const [step, setStep] = useState<Step>(getInitialStep());
 
   const [formData, setFormData] = useState({
     salesRepId: editData?.salesRepId || (reps.length === 1 ? reps[0].id : ''),
@@ -94,6 +96,15 @@ export function CallEntryForm({ reps, onSuccess, onCancel, editData }: CallEntry
   } | null>(
     editData?.aiScoreOverall
       ? {
+          counts: {
+            situationQuestions: editData.situationQuestions,
+            problemQuestions: editData.problemQuestions,
+            implicationQuestions: editData.implicationQuestions,
+            needPayoffQuestions: editData.needPayoffQuestions,
+            challengesPresented: editData.challengesPresented,
+            dataPointsShared: editData.dataPointsShared,
+            insightsShared: editData.insightsShared,
+          },
           scores: {
             spin: editData.aiScoreSpin || 0,
             challenger: editData.aiScoreChallenger || 0,
@@ -107,7 +118,12 @@ export function CallEntryForm({ reps, onSuccess, onCancel, editData }: CallEntry
 
   const handleAnalyzeTranscript = async () => {
     if (!formData.transcript.trim()) {
-      setError('Please enter a transcript to analyze');
+      setError('Please paste a call transcript to analyze');
+      return;
+    }
+
+    if (!formData.salesRepId) {
+      setError('Please select a sales rep');
       return;
     }
 
@@ -142,6 +158,9 @@ export function CallEntryForm({ reps, onSuccess, onCancel, editData }: CallEntry
           insightsShared: analysis.counts.insightsShared,
         }));
       }
+
+      // Move to self-assessment step
+      setStep('self-assess');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -149,18 +168,11 @@ export function CallEntryForm({ reps, onSuccess, onCancel, editData }: CallEntry
     }
   };
 
-  const handleRevealAiScores = () => {
-    setShowAiScores(true);
+  const handleSubmitSelfAssessment = () => {
+    setStep('compare');
   };
 
-  const hasRepScores =
-    formData.repScoreSpin > 0 &&
-    formData.repScoreChallenger > 0 &&
-    formData.repScoreInsight > 0 &&
-    formData.repScoreOverall > 0;
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = async () => {
     setLoading(true);
     setError(null);
 
@@ -202,17 +214,68 @@ export function CallEntryForm({ reps, onSuccess, onCancel, editData }: CallEntry
     const { name, value, type } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: type === 'number' ? parseFloat(value) || 0 : value,
+      [name]: type === 'number' || type === 'range' ? parseFloat(value) || 0 : value,
     }));
   };
 
+  const totalSPIN = formData.situationQuestions + formData.problemQuestions +
+                    formData.implicationQuestions + formData.needPayoffQuestions;
+
   return (
     <div className="fixed inset-0 bg-gray-900/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-gray-200">
+      <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-200">
         <div className="p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            {editData ? 'Edit Call Analysis' : 'Add Call Analysis'}
-          </h2>
+          {/* Header with Steps */}
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+              {editData ? 'Edit Call Analysis' : 'Analyze Sales Call'}
+            </h2>
+
+            {/* Step Indicator */}
+            <div className="flex items-center justify-between">
+              {[
+                { key: 'transcript', label: '1. Transcript' },
+                { key: 'self-assess', label: '2. Self-Assess' },
+                { key: 'compare', label: '3. Compare' },
+              ].map((s, i) => (
+                <div key={s.key} className="flex items-center">
+                  <div
+                    className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${
+                      step === s.key
+                        ? 'bg-blue-600 text-white'
+                        : (step === 'self-assess' && s.key === 'transcript') ||
+                          (step === 'compare' && s.key !== 'compare')
+                        ? 'bg-green-500 text-white'
+                        : 'bg-gray-200 text-gray-600'
+                    }`}
+                  >
+                    {(step === 'self-assess' && s.key === 'transcript') ||
+                    (step === 'compare' && s.key !== 'compare') ? (
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path
+                          fillRule="evenodd"
+                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    ) : (
+                      i + 1
+                    )}
+                  </div>
+                  <span
+                    className={`ml-2 text-sm ${
+                      step === s.key ? 'text-blue-600 font-medium' : 'text-gray-500'
+                    }`}
+                  >
+                    {s.label}
+                  </span>
+                  {i < 2 && (
+                    <div className="w-12 h-0.5 mx-2 bg-gray-200" />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
 
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
@@ -220,409 +283,325 @@ export function CallEntryForm({ reps, onSuccess, onCancel, editData }: CallEntry
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Basic Info */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Step 1: Transcript */}
+          {step === 'transcript' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Sales Rep
+                  </label>
+                  <select
+                    name="salesRepId"
+                    value={formData.salesRepId}
+                    onChange={handleChange}
+                    required
+                    className="w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  >
+                    <option value="">Select a rep...</option>
+                    {reps.map((rep) => (
+                      <option key={rep.id} value={rep.id}>
+                        {rep.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Call Date
+                  </label>
+                  <input
+                    type="date"
+                    name="callDate"
+                    value={formData.callDate}
+                    onChange={handleChange}
+                    required
+                    className="w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Sales Rep
+                  Paste Call Transcript
                 </label>
-                <select
-                  name="salesRepId"
-                  value={formData.salesRepId}
+                <textarea
+                  name="transcript"
+                  value={formData.transcript}
                   onChange={handleChange}
-                  required
-                  disabled={!!editData}
-                  className="w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"
+                  rows={12}
+                  placeholder="Paste the full call transcript here..."
+                  className="w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
                 >
-                  <option value="">Select a rep...</option>
-                  {reps.map((rep) => (
-                    <option key={rep.id} value={rep.id}>
-                      {rep.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Call Date
-                </label>
-                <input
-                  type="date"
-                  name="callDate"
-                  value={formData.callDate}
-                  onChange={handleChange}
-                  required
-                  className="w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Call Label
-                </label>
-                <input
-                  type="text"
-                  name="callLabel"
-                  value={formData.callLabel}
-                  onChange={handleChange}
-                  required
-                  placeholder="e.g., Call 1 - Morning"
-                  className="w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-
-            {/* Metadata */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Call Duration (minutes)
-                </label>
-                <input
-                  type="number"
-                  name="callDuration"
-                  value={formData.callDuration}
-                  onChange={handleChange}
-                  min="0"
-                  className="w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Outcome
-                </label>
-                <select
-                  name="outcome"
-                  value={formData.outcome}
-                  onChange={handleChange}
-                  className="w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                >
-                  {OUTCOMES.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Transcript */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Call Transcript (optional)
-              </label>
-              <textarea
-                name="transcript"
-                value={formData.transcript}
-                onChange={handleChange}
-                rows={6}
-                placeholder="Paste the call transcript here for AI analysis..."
-                className="w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              />
-              {formData.transcript.trim() && (
+                  Cancel
+                </button>
                 <button
                   type="button"
                   onClick={handleAnalyzeTranscript}
-                  disabled={analyzing}
-                  className="mt-2 px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 transition-colors disabled:opacity-50"
+                  disabled={analyzing || !formData.transcript.trim()}
+                  className="px-6 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:opacity-50 flex items-center"
                 >
-                  {analyzing ? 'Analyzing...' : 'Analyze with AI'}
+                  {analyzing ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Analyzing...
+                    </>
+                  ) : (
+                    'Analyze with AI'
+                  )}
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 2: Self-Assessment */}
+          {step === 'self-assess' && (
+            <div className="space-y-6">
+              {/* AI Analysis Results Summary */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h3 className="text-sm font-medium text-gray-900 mb-3">AI Found:</h3>
+                <div className="grid grid-cols-4 gap-3 mb-3">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-600">{formData.situationQuestions}</div>
+                    <div className="text-xs text-gray-500">Situation</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-yellow-600">{formData.problemQuestions}</div>
+                    <div className="text-xs text-gray-500">Problem</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-red-600">{formData.implicationQuestions}</div>
+                    <div className="text-xs text-gray-500">Implication</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600">{formData.needPayoffQuestions}</div>
+                    <div className="text-xs text-gray-500">Need-Payoff</div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3 pt-3 border-t border-gray-200">
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-purple-600">{formData.challengesPresented}</div>
+                    <div className="text-xs text-gray-500">Challenges</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-pink-600">{formData.dataPointsShared}</div>
+                    <div className="text-xs text-gray-500">Data Points</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-cyan-600">{formData.insightsShared}</div>
+                    <div className="text-xs text-gray-500">Insights</div>
+                  </div>
+                </div>
+                <div className="mt-3 pt-3 border-t border-gray-200 text-center">
+                  <span className="text-sm text-gray-600">Total SPIN Questions: </span>
+                  <span className="font-bold text-gray-900">{totalSPIN}</span>
+                </div>
+              </div>
+
+              {/* Self-Assessment */}
+              <div>
+                <h3 className="text-sm font-medium text-gray-900 mb-4">
+                  How do you think you did? (1-10)
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-gray-600">SPIN Selling</span>
+                      <span className="font-medium text-gray-900">{formData.repScoreSpin}</span>
+                    </div>
+                    <input
+                      type="range"
+                      name="repScoreSpin"
+                      value={formData.repScoreSpin}
+                      onChange={handleChange}
+                      min="1"
+                      max="10"
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                    />
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-gray-600">Challenger Sale</span>
+                      <span className="font-medium text-gray-900">{formData.repScoreChallenger}</span>
+                    </div>
+                    <input
+                      type="range"
+                      name="repScoreChallenger"
+                      value={formData.repScoreChallenger}
+                      onChange={handleChange}
+                      min="1"
+                      max="10"
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                    />
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-gray-600">Insight Selling</span>
+                      <span className="font-medium text-gray-900">{formData.repScoreInsight}</span>
+                    </div>
+                    <input
+                      type="range"
+                      name="repScoreInsight"
+                      value={formData.repScoreInsight}
+                      onChange={handleChange}
+                      min="1"
+                      max="10"
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-600"
+                    />
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-gray-600">Overall Performance</span>
+                      <span className="font-medium text-gray-900">{formData.repScoreOverall}</span>
+                    </div>
+                    <input
+                      type="range"
+                      name="repScoreOverall"
+                      value={formData.repScoreOverall}
+                      onChange={handleChange}
+                      min="1"
+                      max="10"
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-600"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => setStep('transcript')}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSubmitSelfAssessment}
+                  className="px-6 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700"
+                >
+                  See AI Scores
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: Compare */}
+          {step === 'compare' && aiAnalysis?.scores && (
+            <div className="space-y-6">
+              {/* Score Comparison */}
+              <div className="space-y-4">
+                {[
+                  { label: 'SPIN Selling', rep: formData.repScoreSpin, ai: aiAnalysis.scores.spin, color: 'blue' },
+                  { label: 'Challenger Sale', rep: formData.repScoreChallenger, ai: aiAnalysis.scores.challenger, color: 'purple' },
+                  { label: 'Insight Selling', rep: formData.repScoreInsight, ai: aiAnalysis.scores.insight, color: 'green' },
+                  { label: 'Overall', rep: formData.repScoreOverall, ai: aiAnalysis.scores.overall, color: 'orange' },
+                ].map((item) => {
+                  const diff = item.rep - item.ai;
+                  return (
+                    <div key={item.label} className="bg-gray-50 rounded-lg p-4">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="font-medium text-gray-900">{item.label}</span>
+                        <span
+                          className={`text-sm font-medium px-2 py-0.5 rounded ${
+                            Math.abs(diff) < 1
+                              ? 'bg-gray-200 text-gray-700'
+                              : diff > 0
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : 'bg-blue-100 text-blue-800'
+                          }`}
+                        >
+                          {Math.abs(diff) < 1
+                            ? 'Aligned'
+                            : diff > 0
+                            ? `You rated ${diff.toFixed(1)} higher`
+                            : `AI rated ${Math.abs(diff).toFixed(1)} higher`}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="flex-1">
+                          <div className="flex justify-between text-xs text-gray-500 mb-1">
+                            <span>Your Score</span>
+                            <span className="font-medium text-gray-900">{item.rep}</span>
+                          </div>
+                          <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full bg-${item.color}-500 rounded-full`}
+                              style={{ width: `${item.rep * 10}%` }}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex justify-between text-xs text-gray-500 mb-1">
+                            <span>AI Score</span>
+                            <span className="font-medium text-gray-900">{item.ai.toFixed(1)}</span>
+                          </div>
+                          <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full bg-${item.color}-600 rounded-full`}
+                              style={{ width: `${item.ai * 10}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* AI Feedback */}
+              {aiAnalysis.feedback && (
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <h3 className="text-sm font-medium text-blue-900 mb-2">AI Feedback</h3>
+                  <p className="text-sm text-blue-800 whitespace-pre-wrap">{aiAnalysis.feedback}</p>
+                </div>
               )}
-            </div>
 
-            {/* SPIN Counts */}
-            <div className="border-t border-gray-200 pt-4">
-              <h3 className="text-sm font-medium text-gray-900 mb-3">SPIN Questions</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
-                    Situation (S)
-                  </label>
-                  <input
-                    type="number"
-                    name="situationQuestions"
-                    value={formData.situationQuestions}
-                    onChange={handleChange}
-                    min="0"
-                    className="w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
-                    Problem (P)
-                  </label>
-                  <input
-                    type="number"
-                    name="problemQuestions"
-                    value={formData.problemQuestions}
-                    onChange={handleChange}
-                    min="0"
-                    className="w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
-                    Implication (I)
-                  </label>
-                  <input
-                    type="number"
-                    name="implicationQuestions"
-                    value={formData.implicationQuestions}
-                    onChange={handleChange}
-                    min="0"
-                    className="w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
-                    Need-Payoff (N)
-                  </label>
-                  <input
-                    type="number"
-                    name="needPayoffQuestions"
-                    value={formData.needPayoffQuestions}
-                    onChange={handleChange}
-                    min="0"
-                    className="w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Challenger & Insight Counts */}
-            <div className="border-t border-gray-200 pt-4">
-              <h3 className="text-sm font-medium text-gray-900 mb-3">
-                Challenger Sale & Insight Selling
-              </h3>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
-                    Challenges Presented
-                  </label>
-                  <input
-                    type="number"
-                    name="challengesPresented"
-                    value={formData.challengesPresented}
-                    onChange={handleChange}
-                    min="0"
-                    className="w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
-                    Data Points Shared
-                  </label>
-                  <input
-                    type="number"
-                    name="dataPointsShared"
-                    value={formData.dataPointsShared}
-                    onChange={handleChange}
-                    min="0"
-                    className="w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
-                    Insights Shared
-                  </label>
-                  <input
-                    type="number"
-                    name="insightsShared"
-                    value={formData.insightsShared}
-                    onChange={handleChange}
-                    min="0"
-                    className="w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Rep Self-Assessment */}
-            <div className="border-t border-gray-200 pt-4">
-              <h3 className="text-sm font-medium text-gray-900 mb-3">
-                Self-Assessment Scores (1-10)
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
-                    SPIN Score
-                  </label>
-                  <input
-                    type="range"
-                    name="repScoreSpin"
-                    value={formData.repScoreSpin}
-                    onChange={handleChange}
-                    min="1"
-                    max="10"
-                    className="w-full"
-                  />
-                  <div className="text-center text-sm font-medium text-gray-900">
-                    {formData.repScoreSpin}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
-                    Challenger Score
-                  </label>
-                  <input
-                    type="range"
-                    name="repScoreChallenger"
-                    value={formData.repScoreChallenger}
-                    onChange={handleChange}
-                    min="1"
-                    max="10"
-                    className="w-full"
-                  />
-                  <div className="text-center text-sm font-medium text-gray-900">
-                    {formData.repScoreChallenger}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
-                    Insight Score
-                  </label>
-                  <input
-                    type="range"
-                    name="repScoreInsight"
-                    value={formData.repScoreInsight}
-                    onChange={handleChange}
-                    min="1"
-                    max="10"
-                    className="w-full"
-                  />
-                  <div className="text-center text-sm font-medium text-gray-900">
-                    {formData.repScoreInsight}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
-                    Overall Score
-                  </label>
-                  <input
-                    type="range"
-                    name="repScoreOverall"
-                    value={formData.repScoreOverall}
-                    onChange={handleChange}
-                    min="1"
-                    max="10"
-                    className="w-full"
-                  />
-                  <div className="text-center text-sm font-medium text-gray-900">
-                    {formData.repScoreOverall}
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-4">
-                <label className="block text-xs font-medium text-gray-600 mb-1">
-                  Notes
+              {/* Optional Notes */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Your Notes (optional)
                 </label>
                 <textarea
                   name="repNotes"
                   value={formData.repNotes}
                   onChange={handleChange}
                   rows={2}
-                  placeholder="Any notes about this call..."
+                  placeholder="Any thoughts or takeaways from this call..."
                   className="w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 />
               </div>
-            </div>
 
-            {/* AI Scores Section */}
-            {aiAnalysis?.scores && (
-              <div className="border-t border-gray-200 pt-4">
-                <h3 className="text-sm font-medium text-gray-900 mb-3">AI Analysis</h3>
-
-                {!showAiScores && hasRepScores ? (
-                  <button
-                    type="button"
-                    onClick={handleRevealAiScores}
-                    className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors"
-                  >
-                    Reveal AI Scores
-                  </button>
-                ) : !hasRepScores ? (
-                  <p className="text-sm text-gray-500 italic">
-                    Complete your self-assessment to reveal AI scores
-                  </p>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div className="bg-blue-50 rounded-lg p-3 text-center">
-                        <div className="text-xs text-gray-500">SPIN</div>
-                        <div className="text-2xl font-bold text-blue-700">
-                          {aiAnalysis.scores.spin.toFixed(1)}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          You: {formData.repScoreSpin}
-                        </div>
-                      </div>
-                      <div className="bg-purple-50 rounded-lg p-3 text-center">
-                        <div className="text-xs text-gray-500">Challenger</div>
-                        <div className="text-2xl font-bold text-purple-700">
-                          {aiAnalysis.scores.challenger.toFixed(1)}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          You: {formData.repScoreChallenger}
-                        </div>
-                      </div>
-                      <div className="bg-green-50 rounded-lg p-3 text-center">
-                        <div className="text-xs text-gray-500">Insight</div>
-                        <div className="text-2xl font-bold text-green-700">
-                          {aiAnalysis.scores.insight.toFixed(1)}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          You: {formData.repScoreInsight}
-                        </div>
-                      </div>
-                      <div className="bg-orange-50 rounded-lg p-3 text-center">
-                        <div className="text-xs text-gray-500">Overall</div>
-                        <div className="text-2xl font-bold text-orange-700">
-                          {aiAnalysis.scores.overall.toFixed(1)}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          You: {formData.repScoreOverall}
-                        </div>
-                      </div>
-                    </div>
-
-                    {aiAnalysis.feedback && (
-                      <div className="bg-gray-50 rounded-lg p-4">
-                        <h4 className="text-sm font-medium text-gray-700 mb-2">
-                          AI Feedback
-                        </h4>
-                        <p className="text-sm text-gray-600 whitespace-pre-wrap">
-                          {aiAnalysis.feedback}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
+              <div className="flex justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => setStep('self-assess')}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={loading}
+                  className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {loading ? 'Saving...' : 'Save Analysis'}
+                </button>
               </div>
-            )}
-
-            {/* Buttons */}
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-              <button
-                type="button"
-                onClick={onCancel}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
-              >
-                {loading ? 'Saving...' : editData ? 'Update Analysis' : 'Save Analysis'}
-              </button>
             </div>
-          </form>
+          )}
         </div>
       </div>
     </div>
