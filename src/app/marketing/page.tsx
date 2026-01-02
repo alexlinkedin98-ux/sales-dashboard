@@ -529,6 +529,12 @@ export default function MarketingDashboard() {
               >
                 Sales Dashboard
               </a>
+              <a
+                href="/call-analysis"
+                className="px-4 py-2 text-sm font-medium text-white bg-cyan-600 rounded-md hover:bg-cyan-700 transition-colors"
+              >
+                Call Analysis
+              </a>
               <button
                 onClick={() => setShowChannelManager(true)}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"

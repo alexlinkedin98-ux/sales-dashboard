@@ -18,6 +18,8 @@ model SalesRep {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   entries   WeeklyEntry[]
+  callAnalyses     CallAnalysis[]
+  weeklyCallStats  WeeklyCallStats[]
 }
 
 // Weekly Sales Data Entries
@@ -105,4 +107,82 @@ model MonthlyMarketingStats {
 
   // Unique constraint - one entry per channel per month
   @@unique([channelId, monthStartDate])
+}
+
+// Call Analysis for SPIN/Challenger/Insight Selling tracking
+model CallAnalysis {
+  id              String   @id @default(cuid())
+  salesRepId      String
+  salesRep        SalesRep @relation(fields: [salesRepId], references: [id], onDelete: Cascade)
+  callDate        DateTime
+  callLabel       String   // "Call 1 - Dec 15, 2025"
+
+  // Raw transcript (optional, for reference)
+  transcript      String?  @db.Text
+
+  // SPIN Counts
+  situationQuestions    Int @default(0)
+  problemQuestions      Int @default(0)
+  implicationQuestions  Int @default(0)
+  needPayoffQuestions   Int @default(0)
+
+  // Challenger Sale Counts
+  challengesPresented   Int @default(0)
+  dataPointsShared      Int @default(0)
+
+  // Insight Selling
+  insightsShared        Int @default(0)
+
+  // AI Scores (1-10)
+  aiScoreSpin           Float?
+  aiScoreChallenger     Float?
+  aiScoreInsight        Float?
+  aiScoreOverall        Float?
+  aiFeedback            String? @db.Text
+
+  // Rep Self-Assessment (1-10) - entered first
+  repScoreSpin          Float?
+  repScoreChallenger    Float?
+  repScoreInsight       Float?
+  repScoreOverall       Float?
+  repNotes              String?
+
+  // Metadata
+  callDuration          Int?     // minutes
+  outcome               String?  // "booked", "follow_up", "not_interested", "no_show"
+
+  // Timestamps
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([salesRepId, callDate, callLabel])
+}
+
+// Weekly aggregation for call analysis trends
+model WeeklyCallStats {
+  id              String   @id @default(cuid())
+  salesRepId      String
+  salesRep        SalesRep @relation(fields: [salesRepId], references: [id], onDelete: Cascade)
+  weekStartDate   DateTime
+  weekLabel       String
+
+  // Aggregated counts
+  totalCalls            Int @default(0)
+  avgSituationQuestions Float @default(0)
+  avgProblemQuestions   Float @default(0)
+  avgImplicationQuestions Float @default(0)
+  avgNeedPayoffQuestions Float @default(0)
+  avgChallenges         Float @default(0)
+  avgDataPoints         Float @default(0)
+  avgInsights           Float @default(0)
+
+  // Aggregated scores
+  avgAiScoreOverall     Float?
+  avgRepScoreOverall    Float?
+
+  // Timestamps
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([salesRepId, weekStartDate])
 }
