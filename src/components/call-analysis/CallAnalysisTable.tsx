@@ -37,6 +37,10 @@ const OUTCOME_LABELS: Record<string, { label: string; color: string }> = {
 };
 
 // SPIN Ratio visualization component
+// Based on Neil Rackham's research:
+// - Top performers ask 4x more Implication questions than average
+// - Situation questions should be minimized (only ask what's necessary)
+// - Implication & Need-Payoff questions build perceived value and are most important
 function SPINRatioBar({ s, p, i, n }: { s: number; p: number; i: number; n: number }) {
   const total = s + p + i + n;
   if (total === 0) return <span className="text-gray-400">-</span>;
@@ -46,15 +50,39 @@ function SPINRatioBar({ s, p, i, n }: { s: number; p: number; i: number; n: numb
   const iPercent = (i / total) * 100;
   const nPercent = (n / total) * 100;
 
-  // Ideal SPIN ratio: S should be low (~10-20%), P moderate (~20-30%), I and N higher (~25-35% each)
-  // Score based on how well they follow the ideal pattern (less S, more I/N)
-  const ratioScore = Math.min(10, Math.max(1,
-    10 - (sPercent > 40 ? 3 : sPercent > 30 ? 2 : sPercent > 20 ? 1 : 0) +
-    (iPercent >= 15 ? 1 : 0) +
-    (nPercent >= 10 ? 1 : 0) -
-    (nPercent === 0 ? 2 : 0) -
-    (iPercent === 0 ? 1 : 0)
-  ));
+  // SPIN Ratio Score calculation based on Rackham's research:
+  // - Penalize heavily for too many Situation questions (should be minimal)
+  // - Reward for Implication questions (top performers ask 4x more)
+  // - Reward for Need-Payoff questions (builds perceived value)
+  // - Problem questions are important but transitional
+
+  let score = 5; // Start at baseline
+
+  // Situation questions penalty (should be <25% ideally, <15% is excellent)
+  if (sPercent > 60) score -= 3;
+  else if (sPercent > 50) score -= 2.5;
+  else if (sPercent > 40) score -= 2;
+  else if (sPercent > 30) score -= 1;
+  else if (sPercent <= 15) score += 1; // Bonus for keeping S low
+
+  // Implication questions bonus (most important - top performers ask 4x more)
+  if (iPercent >= 25) score += 2;
+  else if (iPercent >= 15) score += 1.5;
+  else if (iPercent >= 10) score += 1;
+  else if (iPercent === 0) score -= 1.5; // Penalty for no implication questions
+
+  // Need-Payoff questions bonus (builds perceived value)
+  if (nPercent >= 20) score += 2;
+  else if (nPercent >= 10) score += 1.5;
+  else if (nPercent >= 5) score += 1;
+  else if (nPercent === 0) score -= 1; // Penalty for no need-payoff questions
+
+  // Problem questions (moderate importance)
+  if (pPercent >= 15 && pPercent <= 35) score += 0.5;
+  else if (pPercent === 0) score -= 0.5;
+
+  // Clamp score between 1 and 10
+  const ratioScore = Math.min(10, Math.max(1, Math.round(score)));
 
   return (
     <div className="flex flex-col items-center gap-1">
@@ -70,7 +98,7 @@ function SPINRatioBar({ s, p, i, n }: { s: number; p: number; i: number; n: numb
       <div className={`text-xs font-medium ${
         ratioScore >= 7 ? 'text-green-600' : ratioScore >= 5 ? 'text-yellow-600' : 'text-red-600'
       }`}>
-        {ratioScore.toFixed(0)}/10
+        {ratioScore}/10
       </div>
     </div>
   );
