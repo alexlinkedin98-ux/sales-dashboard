@@ -25,6 +25,35 @@ export async function GET() {
   }
 }
 
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const weekDate = searchParams.get('weekDate');
+
+    if (!weekDate) {
+      return NextResponse.json(
+        { error: 'Week date is required' },
+        { status: 400 }
+      );
+    }
+
+    // Delete all entries for this week
+    const deleted = await prisma.marketingEntry.deleteMany({
+      where: {
+        weekStartDate: new Date(weekDate),
+      },
+    });
+
+    return NextResponse.json({ success: true, count: deleted.count });
+  } catch (error) {
+    console.error('Error deleting marketing entries:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete entries' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

@@ -79,6 +79,37 @@ export async function PUT(
   }
 }
 
+// PATCH partial update (e.g., just outcome)
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await request.json();
+
+    // Check if analysis exists
+    const existing = await prisma.callAnalysis.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Call analysis not found' }, { status: 404 });
+    }
+
+    const analysis = await prisma.callAnalysis.update({
+      where: { id },
+      data: body,
+      include: { salesRep: true },
+    });
+
+    return NextResponse.json(analysis);
+  } catch (error) {
+    console.error('Error patching call analysis:', error);
+    return NextResponse.json({ error: 'Failed to update call analysis' }, { status: 500 });
+  }
+}
+
 // DELETE call analysis
 export async function DELETE(
   request: Request,

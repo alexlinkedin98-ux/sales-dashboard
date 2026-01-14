@@ -12,7 +12,7 @@ import {
 import { EntryForm } from '@/components/EntryForm';
 import { RepManager } from '@/components/RepManager';
 
-type ViewMode = 'weekly' | 'monthly' | 'quarterly' | 'comparison';
+type ViewMode = 'weekly' | 'monthly' | 'quarterly' | 'annual' | 'comparison';
 
 interface SalesRep {
   id: string;
@@ -28,6 +28,9 @@ export default function Dashboard() {
   const [viewMode, setViewMode] = useState<ViewMode>('weekly');
   const [selectedMonth, setSelectedMonth] = useState<string>('');
   const [compareReps, setCompareReps] = useState<Set<string>>(new Set());
+  const [dateRangeStart, setDateRangeStart] = useState<string>('');
+  const [dateRangeEnd, setDateRangeEnd] = useState<string>('');
+  const [selectedQuarter, setSelectedQuarter] = useState<string>('');
 
   // Modal states
   const [showEntryForm, setShowEntryForm] = useState(false);
@@ -72,6 +75,24 @@ export default function Dashboard() {
         .filter(rep => rep.monthlySummaries.length > 0)
         .map(rep => rep.name);
       setCompareReps(new Set(repsWithData));
+
+      // Initialize date range to full year (or all available data)
+      const allWeekDates = dashboardData.reps.flatMap(r => r.weeklyData.map(w => new Date(w.weekDate)));
+      if (allWeekDates.length > 0) {
+        const minDate = new Date(Math.min(...allWeekDates.map(d => d.getTime())));
+        const maxDate = new Date(Math.max(...allWeekDates.map(d => d.getTime())));
+        setDateRangeStart(minDate.toISOString().split('T')[0]);
+        setDateRangeEnd(maxDate.toISOString().split('T')[0]);
+      }
+
+      // Initialize selected quarter to the latest
+      if (dashboardData.reps.length > 0 && dashboardData.reps[0].quarterlySummaries.length > 0) {
+        setSelectedQuarter(
+          dashboardData.reps[0].quarterlySummaries[
+            dashboardData.reps[0].quarterlySummaries.length - 1
+          ].quarter
+        );
+      }
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -152,6 +173,20 @@ export default function Dashboard() {
       ).sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
     : [];
 
+  const allQuarters = data
+    ? Array.from(
+        new Set(data.reps.flatMap((rep) => rep.quarterlySummaries.map((q) => q.quarter)))
+      ).sort((a, b) => {
+        // Parse quarter strings like "Q3 2025" and sort chronologically
+        const parseQuarter = (q: string) => {
+          const match = q.match(/Q(\d)\s+(\d{4})/);
+          if (!match) return 0;
+          return parseInt(match[2]) * 10 + parseInt(match[1]);
+        };
+        return parseQuarter(a) - parseQuarter(b);
+      })
+    : [];
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -185,6 +220,24 @@ export default function Dashboard() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
                 </svg>
                 Marketing
+              </a>
+              <a
+                href="/upsells"
+                className="inline-flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+                Upsells
+              </a>
+              <a
+                href="/triage"
+                className="inline-flex items-center px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-sm font-medium"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                Triage
               </a>
               <button
                 onClick={() => setShowRepManager(true)}
@@ -253,6 +306,7 @@ export default function Dashboard() {
                     { key: 'weekly', label: 'Weekly' },
                     { key: 'monthly', label: 'Monthly' },
                     { key: 'quarterly', label: 'Quarterly' },
+                    { key: 'annual', label: 'Annual' },
                     { key: 'comparison', label: 'Comparison' },
                   ].map((tab) => (
                     <button
@@ -328,6 +382,42 @@ export default function Dashboard() {
                           </option>
                         ))}
                       </select>
+                    </>
+                  )}
+
+                  {viewMode === 'quarterly' && allQuarters.length > 0 && (
+                    <>
+                      <label className="text-sm font-medium text-gray-900 ml-4">Quarter:</label>
+                      <select
+                        value={selectedQuarter}
+                        onChange={(e) => setSelectedQuarter(e.target.value)}
+                        className="block w-36 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm text-gray-900"
+                      >
+                        {allQuarters.map((quarter) => (
+                          <option key={quarter} value={quarter}>
+                            {quarter}
+                          </option>
+                        ))}
+                      </select>
+                    </>
+                  )}
+
+                  {viewMode === 'annual' && (
+                    <>
+                      <label className="text-sm font-medium text-gray-900 ml-4">From:</label>
+                      <input
+                        type="date"
+                        value={dateRangeStart}
+                        onChange={(e) => setDateRangeStart(e.target.value)}
+                        className="block rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm text-gray-900"
+                      />
+                      <label className="text-sm font-medium text-gray-900">To:</label>
+                      <input
+                        type="date"
+                        value={dateRangeEnd}
+                        onChange={(e) => setDateRangeEnd(e.target.value)}
+                        className="block rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm text-gray-900"
+                      />
                     </>
                   )}
                 </div>
@@ -432,9 +522,11 @@ export default function Dashboard() {
             {viewMode === 'quarterly' && (
               <div className="space-y-8">
                 {filteredReps.map((rep) => {
-                  const latestIndex = rep.quarterlySummaries.length - 1;
-                  const latestQuarter = latestIndex >= 0 ? rep.quarterlySummaries[latestIndex] : null;
-                  const previousQuarter = latestIndex > 0 ? rep.quarterlySummaries[latestIndex - 1] : null;
+                  const quarterIndex = rep.quarterlySummaries.findIndex(
+                    (q) => q.quarter === selectedQuarter
+                  );
+                  const currentQuarter = quarterIndex >= 0 ? rep.quarterlySummaries[quarterIndex] : null;
+                  const previousQuarter = quarterIndex > 0 ? rep.quarterlySummaries[quarterIndex - 1] : null;
                   return (
                     <div
                       key={rep.name}
@@ -443,13 +535,13 @@ export default function Dashboard() {
                       <h2 className="text-xl font-semibold text-gray-900 mb-4">
                         {rep.name} - Quarterly Performance
                       </h2>
-                      <QuarterlySummaryTable summaries={rep.quarterlySummaries} repName={rep.name} />
+                      <QuarterlySummaryTable summaries={rep.quarterlySummaries} repName={rep.name} selectedQuarter={selectedQuarter} />
 
-                      {latestQuarter && (
+                      {currentQuarter && (
                         <div className="mt-6">
                           <SummaryCards
-                            summary={latestQuarter}
-                            title={`Latest Quarter: ${latestQuarter.quarter}`}
+                            summary={currentQuarter}
+                            title={`${selectedQuarter}`}
                             previousSummary={previousQuarter}
                           />
                         </div>
@@ -457,6 +549,251 @@ export default function Dashboard() {
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {viewMode === 'annual' && data && (
+              <div className="space-y-8">
+                {(() => {
+                  // Filter weekly data by date range
+                  const startDate = dateRangeStart ? new Date(dateRangeStart) : null;
+                  const endDate = dateRangeEnd ? new Date(dateRangeEnd) : null;
+
+                  const filteredData = filteredReps.map(rep => {
+                    const filteredWeekly = rep.weeklyData.filter(week => {
+                      const weekDate = new Date(week.weekDate);
+                      if (startDate && weekDate < startDate) return false;
+                      if (endDate && weekDate > endDate) return false;
+                      return true;
+                    });
+                    return { ...rep, weeklyData: filteredWeekly };
+                  });
+
+                  // Calculate aggregated totals for each rep
+                  const repSummaries = filteredData.map(rep => {
+                    const totalCallsScheduled = rep.weeklyData.reduce((sum, w) => sum + w.introCallsScheduled, 0);
+                    const totalCallsTaken = rep.weeklyData.reduce((sum, w) => sum + w.introCallsTaken, 0);
+                    const totalAccountsAudited = rep.weeklyData.reduce((sum, w) => sum + w.accountsAudited, 0);
+                    const totalProposals = rep.weeklyData.reduce((sum, w) => sum + w.proposalsPitched, 0);
+                    const totalClosed = rep.weeklyData.reduce((sum, w) => sum + w.dealsClosed, 0);
+                    const totalMRR = rep.weeklyData.reduce((sum, w) => sum + w.thisMonthMRR, 0);
+                    const showUpRate = totalCallsScheduled > 0 ? (totalCallsTaken / totalCallsScheduled) * 100 : 0;
+                    const closeRate = totalProposals > 0 ? (totalClosed / totalProposals) * 100 : 0;
+                    const acceptanceRate = totalCallsTaken > 0 ? (totalAccountsAudited / totalCallsTaken) * 100 : 0;
+                    const mrrPerSale = totalClosed > 0 ? totalMRR / totalClosed : 0;
+
+                    return {
+                      name: rep.name,
+                      weekCount: rep.weeklyData.length,
+                      totalCallsScheduled,
+                      totalCallsTaken,
+                      totalAccountsAudited,
+                      totalProposals,
+                      totalClosed,
+                      totalMRR,
+                      showUpRate,
+                      closeRate,
+                      acceptanceRate,
+                      mrrPerSale,
+                    };
+                  });
+
+                  // Find best performer for each metric
+                  const maxMRR = Math.max(...repSummaries.map(r => r.totalMRR), 0);
+                  const maxClosed = Math.max(...repSummaries.map(r => r.totalClosed), 0);
+                  const maxCloseRate = Math.max(...repSummaries.map(r => r.closeRate), 0);
+                  const maxCalls = Math.max(...repSummaries.map(r => r.totalCallsTaken), 0);
+
+                  const calcVsBest = (val: number, max: number) => max > 0 ? ((val - max) / max) * 100 : 0;
+
+                  const formatDateRange = () => {
+                    if (startDate && endDate) {
+                      return `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+                    }
+                    return 'All Time';
+                  };
+
+                  return (
+                    <>
+                      {/* Date Range Header */}
+                      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-100 p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="text-lg font-semibold text-gray-900">Annual Summary</h3>
+                            <p className="text-sm text-gray-500">{formatDateRange()}</p>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm text-gray-500">Total Weeks</div>
+                            <div className="text-2xl font-bold text-indigo-600">
+                              {Math.max(...repSummaries.map(r => r.weekCount), 0)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Rep Summary Cards */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {repSummaries.map((rep) => (
+                          <div
+                            key={rep.name}
+                            className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
+                          >
+                            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                              {rep.name}
+                              <span className="text-sm font-normal text-gray-500 ml-2">
+                                ({rep.weekCount} weeks)
+                              </span>
+                            </h3>
+
+                            {/* Main Metrics */}
+                            <div className="grid grid-cols-2 gap-3 mb-4">
+                              <div className="bg-green-50 rounded-lg p-3">
+                                <div className="text-xs text-gray-500 uppercase">Total MRR</div>
+                                <div className="text-xl font-bold text-green-700">
+                                  ${rep.totalMRR.toLocaleString()}
+                                </div>
+                                {repSummaries.length > 1 && (
+                                  <div className={`text-xs mt-1 font-medium ${
+                                    rep.totalMRR === maxMRR ? 'text-green-600' : 'text-red-600'
+                                  }`}>
+                                    {rep.totalMRR === maxMRR ? 'Best' : `${calcVsBest(rep.totalMRR, maxMRR).toFixed(0)}% vs best`}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="bg-blue-50 rounded-lg p-3">
+                                <div className="text-xs text-gray-500 uppercase">Deals Closed</div>
+                                <div className="text-xl font-bold text-blue-700">
+                                  {rep.totalClosed}
+                                </div>
+                                {repSummaries.length > 1 && (
+                                  <div className={`text-xs mt-1 font-medium ${
+                                    rep.totalClosed === maxClosed ? 'text-green-600' : 'text-red-600'
+                                  }`}>
+                                    {rep.totalClosed === maxClosed ? 'Best' : `${calcVsBest(rep.totalClosed, maxClosed).toFixed(0)}% vs best`}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="bg-purple-50 rounded-lg p-3">
+                                <div className="text-xs text-gray-500 uppercase">Close Rate</div>
+                                <div className="text-xl font-bold text-purple-700">
+                                  {rep.closeRate.toFixed(1)}%
+                                </div>
+                                {repSummaries.length > 1 && (
+                                  <div className={`text-xs mt-1 font-medium ${
+                                    rep.closeRate === maxCloseRate ? 'text-green-600' : 'text-red-600'
+                                  }`}>
+                                    {rep.closeRate === maxCloseRate ? 'Best' : `${calcVsBest(rep.closeRate, maxCloseRate).toFixed(0)}% vs best`}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="bg-orange-50 rounded-lg p-3">
+                                <div className="text-xs text-gray-500 uppercase">Calls Taken</div>
+                                <div className="text-xl font-bold text-orange-700">
+                                  {rep.totalCallsTaken}
+                                </div>
+                                {repSummaries.length > 1 && (
+                                  <div className={`text-xs mt-1 font-medium ${
+                                    rep.totalCallsTaken === maxCalls ? 'text-green-600' : 'text-red-600'
+                                  }`}>
+                                    {rep.totalCallsTaken === maxCalls ? 'Best' : `${calcVsBest(rep.totalCallsTaken, maxCalls).toFixed(0)}% vs best`}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Additional Metrics */}
+                            <div className="border-t border-gray-100 pt-3 grid grid-cols-3 gap-2 text-center">
+                              <div>
+                                <div className="text-xs text-gray-500 uppercase">Show-up</div>
+                                <div className="text-sm font-semibold text-gray-900">{rep.showUpRate.toFixed(1)}%</div>
+                              </div>
+                              <div>
+                                <div className="text-xs text-gray-500 uppercase">Acceptance</div>
+                                <div className="text-sm font-semibold text-gray-900">{rep.acceptanceRate.toFixed(1)}%</div>
+                              </div>
+                              <div>
+                                <div className="text-xs text-gray-500 uppercase">MRR/Sale</div>
+                                <div className="text-sm font-semibold text-gray-900">${rep.mrrPerSale.toLocaleString()}</div>
+                              </div>
+                            </div>
+
+                            {/* Funnel Breakdown */}
+                            <div className="border-t border-gray-100 pt-3 mt-3">
+                              <div className="text-xs text-gray-500 uppercase mb-2">Sales Funnel</div>
+                              <div className="space-y-1 text-sm">
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Calls Scheduled</span>
+                                  <span className="font-medium text-gray-900">{rep.totalCallsScheduled}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Calls Taken</span>
+                                  <span className="font-medium text-gray-900">{rep.totalCallsTaken}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Accounts Audited</span>
+                                  <span className="font-medium text-gray-900">{rep.totalAccountsAudited}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Proposals Pitched</span>
+                                  <span className="font-medium text-gray-900">{rep.totalProposals}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Deals Closed</span>
+                                  <span className="font-medium text-gray-900">{rep.totalClosed}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Team Total Summary */}
+                      {repSummaries.length > 1 && (
+                        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                          <h3 className="text-lg font-semibold text-gray-900 mb-4">Team Total</h3>
+                          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                            <div className="text-center">
+                              <div className="text-xs text-gray-500 uppercase">Total MRR</div>
+                              <div className="text-2xl font-bold text-green-600">
+                                ${repSummaries.reduce((sum, r) => sum + r.totalMRR, 0).toLocaleString()}
+                              </div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-xs text-gray-500 uppercase">Deals Closed</div>
+                              <div className="text-2xl font-bold text-blue-600">
+                                {repSummaries.reduce((sum, r) => sum + r.totalClosed, 0)}
+                              </div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-xs text-gray-500 uppercase">Calls Scheduled</div>
+                              <div className="text-2xl font-bold text-indigo-600">
+                                {repSummaries.reduce((sum, r) => sum + r.totalCallsScheduled, 0)}
+                              </div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-xs text-gray-500 uppercase">Calls Taken</div>
+                              <div className="text-2xl font-bold text-orange-600">
+                                {repSummaries.reduce((sum, r) => sum + r.totalCallsTaken, 0)}
+                              </div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-xs text-gray-500 uppercase">Audits</div>
+                              <div className="text-2xl font-bold text-purple-600">
+                                {repSummaries.reduce((sum, r) => sum + r.totalAccountsAudited, 0)}
+                              </div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-xs text-gray-500 uppercase">Proposals</div>
+                              <div className="text-2xl font-bold text-pink-600">
+                                {repSummaries.reduce((sum, r) => sum + r.totalProposals, 0)}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             )}
 

@@ -27,18 +27,17 @@ interface CallAnalysisTableProps {
   onView: (call: CallData) => void;
   onEdit: (call: CallData) => void;
   onDelete: (id: string) => void;
+  onOutcomeChange?: (id: string, outcome: string) => void;
 }
 
 const OUTCOME_LABELS: Record<string, { label: string; color: string }> = {
-  booked: { label: 'Booked', color: 'bg-green-100 text-green-800' },
-  follow_up: { label: 'Follow-up', color: 'bg-yellow-100 text-yellow-800' },
-  not_interested: { label: 'Not Interested', color: 'bg-red-100 text-red-800' },
-  no_show: { label: 'No Show', color: 'bg-gray-100 text-gray-800' },
+  won: { label: 'Won', color: 'bg-green-100 text-green-800' },
+  lost: { label: 'Lost', color: 'bg-red-100 text-red-800' },
 };
 
 // CBE (Career Best Effort) Score Calculation
-// Inspired by Pat Riley's Lakers system from James Clear's article
-// Formula: (Positive Behaviors - Negative Indicators) / Call Duration * 100
+// Inspired by Pat Riley's Lakers system from James Clear's Atomic Habits
+// Formula: Sum of weighted positive behaviors - situation penalty
 //
 // Weights based on sales methodology research:
 // - Implication Questions: 4x weight (Rackham found top performers ask 4x more)
@@ -57,11 +56,7 @@ function calculateCBE(call: CallData): { score: number; breakdown: string } {
     challengesPresented,
     dataPointsShared,
     insightsShared,
-    callDuration
   } = call;
-
-  // If no duration, use a default of 30 minutes for calculation
-  const duration = callDuration || 30;
 
   // Positive behaviors with weights
   const positives =
@@ -76,11 +71,8 @@ function calculateCBE(call: CallData): { score: number; breakdown: string } {
   // Situation questions gather basic info - should be minimal
   const situationPenalty = Math.max(0, s - 5) * 0.5;
 
-  // Calculate raw CBE
-  const rawCBE = (positives - situationPenalty) / duration;
-
-  // Scale to a 3-digit number (multiply by 100)
-  const scaledCBE = Math.round(rawCBE * 100);
+  // Calculate CBE as sum of weighted behaviors
+  const cbeScore = Math.round(positives - situationPenalty);
 
   // Build breakdown string for tooltip
   const breakdown = [
@@ -91,22 +83,23 @@ function calculateCBE(call: CallData): { score: number; breakdown: string } {
     `D×1: ${dataPointsShared}`,
     `In×2: ${insightsShared * 2}`,
     situationPenalty > 0 ? `S penalty: -${situationPenalty.toFixed(1)}` : null,
-    `÷ ${duration}min`,
   ].filter(Boolean).join(' | ');
 
-  return { score: scaledCBE, breakdown };
+  return { score: cbeScore, breakdown };
 }
 
 // Get CBE color based on score
+// Thresholds based on typical good call having ~30-50 total weighted behaviors
 function getCBEColor(score: number): string {
-  if (score >= 80) return 'text-green-600 bg-green-50';
-  if (score >= 50) return 'text-blue-600 bg-blue-50';
-  if (score >= 30) return 'text-yellow-600 bg-yellow-50';
+  if (score >= 40) return 'text-green-600 bg-green-50';
+  if (score >= 25) return 'text-blue-600 bg-blue-50';
+  if (score >= 15) return 'text-yellow-600 bg-yellow-50';
   return 'text-red-600 bg-red-50';
 }
 
-// SPIN Ratio Score calculation based on Rackham's research
-function calculateSPINRatio(s: number, p: number, i: number, n: number): number {
+// SPIN Score calculation based on Rackham's research
+// Evaluates how well-balanced the SPIN question distribution is (1-10 scale)
+function calculateSPINScore(s: number, p: number, i: number, n: number): number {
   const total = s + p + i + n;
   if (total === 0) return 0;
 
@@ -156,8 +149,10 @@ export function CallAnalysisTable({
   onView,
   onEdit,
   onDelete,
+  onOutcomeChange,
 }: CallAnalysisTableProps) {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [updatingOutcome, setUpdatingOutcome] = useState<string | null>(null);
 
   const handleDelete = async (id: string) => {
     try {
@@ -172,6 +167,24 @@ export function CallAnalysisTable({
       console.error('Error deleting call:', error);
     }
     setDeleteConfirm(null);
+  };
+
+  const handleOutcomeChange = async (id: string, outcome: string) => {
+    setUpdatingOutcome(id);
+    try {
+      const response = await fetch(`/api/call-analysis/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ outcome: outcome || null }),
+      });
+
+      if (response.ok && onOutcomeChange) {
+        onOutcomeChange(id, outcome);
+      }
+    } catch (error) {
+      console.error('Error updating outcome:', error);
+    }
+    setUpdatingOutcome(null);
   };
 
   // Calculate average CBE for comparison
@@ -220,7 +233,7 @@ export function CallAnalysisTable({
       {/* Table */}
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+          <thead className="bg-gray-50 overflow-visible">
             <tr>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Date
@@ -235,7 +248,8 @@ export function CallAnalysisTable({
                     <svg className="w-3.5 h-3.5 text-gray-400 cursor-help" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
                     </svg>
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all w-48 z-10 normal-case font-normal">
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all w-48 z-50 normal-case font-normal">
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-gray-900"></div>
                       <div className="font-semibold mb-1">S/P/I/N Questions</div>
                       <div className="space-y-0.5">
                         <div><span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-1"></span>S = Situation</div>
@@ -244,7 +258,6 @@ export function CallAnalysisTable({
                         <div><span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-1"></span>N = Need-Payoff</div>
                       </div>
                       <div className="mt-1 pt-1 border-t border-gray-700 text-gray-300">Higher I & N = better score</div>
-                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
                     </div>
                   </div>
                 </div>
@@ -256,12 +269,12 @@ export function CallAnalysisTable({
                     <svg className="w-3.5 h-3.5 text-gray-400 cursor-help" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
                     </svg>
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all w-44 z-10 normal-case font-normal">
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all w-44 z-50 normal-case font-normal">
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-gray-900"></div>
                       <div className="font-semibold mb-1">Challenger Sale</div>
                       <div><span className="font-medium">c</span> = Challenges presented</div>
                       <div><span className="font-medium">d</span> = Data points shared</div>
                       <div className="mt-1 pt-1 border-t border-gray-700 text-gray-300">Push buyer thinking with insights</div>
-                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
                     </div>
                   </div>
                 </div>
@@ -273,10 +286,10 @@ export function CallAnalysisTable({
                     <svg className="w-3.5 h-3.5 text-gray-400 cursor-help" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
                     </svg>
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all w-44 z-10 normal-case font-normal">
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all w-44 z-50 normal-case font-normal">
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-gray-900"></div>
                       <div className="font-semibold mb-1">Insight Selling</div>
                       <div>Unique perspectives shared that help buyer see their problem differently</div>
-                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
                     </div>
                   </div>
                 </div>
@@ -312,13 +325,13 @@ export function CallAnalysisTable({
               const iPercent = totalSPIN > 0 ? (call.implicationQuestions / totalSPIN) * 100 : 0;
               const nPercent = totalSPIN > 0 ? (call.needPayoffQuestions / totalSPIN) * 100 : 0;
 
-              const spinRatio = calculateSPINRatio(
+              const spinScore = calculateSPINScore(
                 call.situationQuestions,
                 call.problemQuestions,
                 call.implicationQuestions,
                 call.needPayoffQuestions
               );
-              const spinColor = spinRatio >= 7 ? 'text-green-600' : spinRatio >= 5 ? 'text-blue-600' : spinRatio >= 3 ? 'text-yellow-600' : 'text-red-600';
+              const spinColor = spinScore >= 7 ? 'text-green-600' : spinScore >= 5 ? 'text-blue-600' : spinScore >= 3 ? 'text-yellow-600' : 'text-red-600';
 
               return (
                 <tr key={call.id} className="hover:bg-gray-50">
@@ -348,7 +361,7 @@ export function CallAnalysisTable({
                       )}
                     </div>
                   </td>
-                  {/* SPIN Ratio with visual bar */}
+                  {/* SPIN Score with visual bar */}
                   <td className="px-4 py-3 whitespace-nowrap text-sm">
                     <div className="flex flex-col items-center gap-1">
                       <span className="text-xs text-gray-600 font-mono">
@@ -365,7 +378,7 @@ export function CallAnalysisTable({
                         <div className="bg-green-500 h-full" style={{ width: `${nPercent}%` }} />
                       </div>
                       <span className={`text-xs font-medium ${spinColor}`}>
-                        {spinRatio}/10
+                        {spinScore}/10
                       </span>
                     </div>
                   </td>
@@ -406,15 +419,22 @@ export function CallAnalysisTable({
                     )}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
-                    {outcomeInfo ? (
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${outcomeInfo.color}`}
-                      >
-                        {outcomeInfo.label}
-                      </span>
-                    ) : (
-                      <span className="text-gray-400">-</span>
-                    )}
+                    <select
+                      value={call.outcome || ''}
+                      onChange={(e) => handleOutcomeChange(call.id, e.target.value)}
+                      disabled={updatingOutcome === call.id}
+                      className={`text-xs font-medium rounded-full px-2 py-1 border-0 cursor-pointer focus:ring-2 focus:ring-blue-500 ${
+                        updatingOutcome === call.id ? 'opacity-50' : ''
+                      } ${
+                        call.outcome === 'won' ? 'bg-green-100 text-green-800' :
+                        call.outcome === 'lost' ? 'bg-red-100 text-red-800' :
+                        'bg-gray-50 text-gray-500'
+                      }`}
+                    >
+                      <option value="">-</option>
+                      <option value="won">Won</option>
+                      <option value="lost">Lost</option>
+                    </select>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-right">
                     <div className="flex justify-end gap-2">

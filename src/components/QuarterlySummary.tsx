@@ -5,9 +5,10 @@ import { QuarterlySummary as QuarterlySummaryType } from '@/lib/types';
 interface QuarterlySummaryProps {
   summaries: QuarterlySummaryType[];
   repName: string;
+  selectedQuarter?: string;
 }
 
-export function QuarterlySummaryTable({ summaries, repName }: QuarterlySummaryProps) {
+export function QuarterlySummaryTable({ summaries, repName, selectedQuarter }: QuarterlySummaryProps) {
   if (summaries.length === 0) {
     return (
       <div className="text-gray-500 text-center py-8">
@@ -65,7 +66,14 @@ export function QuarterlySummaryTable({ summaries, repName }: QuarterlySummaryPr
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {summaries.map((quarter, index) => (
-            <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+            <tr
+              key={index}
+              className={`${
+                selectedQuarter === quarter.quarter
+                  ? 'bg-blue-50 border-l-4 border-l-blue-500'
+                  : index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+              }`}
+            >
               <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">
                 {quarter.quarter}
               </td>

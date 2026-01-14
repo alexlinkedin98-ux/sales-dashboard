@@ -86,6 +86,7 @@ export default function MarketingDashboard() {
   const [showEntryForm, setShowEntryForm] = useState(false);
   const [showChannelManager, setShowChannelManager] = useState(false);
   const [editWeek, setEditWeek] = useState<string | null>(null);
+  const [selectedWeeks, setSelectedWeeks] = useState<Set<string>>(new Set());
 
   // Monthly stats state
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats[]>([]);
@@ -148,6 +149,61 @@ export default function MarketingDashboard() {
     fetch('/api/marketing/channels')
       .then((res) => res.json())
       .then(setChannels);
+  };
+
+  const handleDeleteWeek = async (weekDate: string) => {
+    if (!confirm('Are you sure you want to delete all entries for this week?')) return;
+
+    try {
+      const response = await fetch(`/api/marketing/entries?weekDate=${weekDate}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        fetchData();
+      } else {
+        alert('Failed to delete entries');
+      }
+    } catch (error) {
+      console.error('Error deleting week:', error);
+      alert('Failed to delete entries');
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedWeeks.size === 0) return;
+    if (!confirm(`Are you sure you want to delete ${selectedWeeks.size} week(s) of entries?`)) return;
+
+    try {
+      const deletePromises = Array.from(selectedWeeks).map((weekDate) =>
+        fetch(`/api/marketing/entries?weekDate=${weekDate}`, { method: 'DELETE' })
+      );
+
+      await Promise.all(deletePromises);
+      setSelectedWeeks(new Set());
+      fetchData();
+    } catch (error) {
+      console.error('Error bulk deleting weeks:', error);
+      alert('Failed to delete some entries');
+    }
+  };
+
+  const toggleWeekSelection = (weekDate: string) => {
+    const newSelected = new Set(selectedWeeks);
+    if (newSelected.has(weekDate)) {
+      newSelected.delete(weekDate);
+    } else {
+      newSelected.add(weekDate);
+    }
+    setSelectedWeeks(newSelected);
+  };
+
+  const toggleAllWeeks = () => {
+    if (selectedWeeks.size === weekRows.length) {
+      setSelectedWeeks(new Set());
+    } else {
+      setSelectedWeeks(new Set(weekRows.map((row) => row.weekDate)));
+    }
   };
 
   // Initialize editing stats when month changes
@@ -645,16 +701,34 @@ export default function MarketingDashboard() {
           {viewMode === 'weekly' && (
             <div className="space-y-6">
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                  Weekly Data
-                  <span className="text-sm font-normal text-gray-500 ml-2">
-                    (All Time: {grandTotal} leads)
-                  </span>
-                </h2>
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    Weekly Data
+                    <span className="text-sm font-normal text-gray-500 ml-2">
+                      (All Time: {grandTotal} leads)
+                    </span>
+                  </h2>
+                  {selectedWeeks.size > 0 && (
+                    <button
+                      onClick={handleBulkDelete}
+                      className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors"
+                    >
+                      Delete Selected ({selectedWeeks.size})
+                    </button>
+                  )}
+                </div>
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
+                        <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-10">
+                          <input
+                            type="checkbox"
+                            checked={weekRows.length > 0 && selectedWeeks.size === weekRows.length}
+                            onChange={toggleAllWeeks}
+                            className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                          />
+                        </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Week
                         </th>
@@ -676,7 +750,15 @@ export default function MarketingDashboard() {
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {weekRows.map((row, idx) => (
-                        <tr key={row.weekDate} className={idx === 0 ? 'bg-blue-50' : 'hover:bg-gray-50'}>
+                        <tr key={row.weekDate} className={`${idx === 0 ? 'bg-blue-50' : 'hover:bg-gray-50'} ${selectedWeeks.has(row.weekDate) ? 'bg-blue-100' : ''}`}>
+                          <td className="px-2 py-3 whitespace-nowrap text-center">
+                            <input
+                              type="checkbox"
+                              checked={selectedWeeks.has(row.weekDate)}
+                              onChange={() => toggleWeekSelection(row.weekDate)}
+                              className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                            />
+                          </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
                             {row.week}
                           </td>
@@ -697,9 +779,15 @@ export default function MarketingDashboard() {
                                 setEditWeek(row.weekDate);
                                 setShowEntryForm(true);
                               }}
-                              className="text-blue-600 hover:text-blue-800"
+                              className="text-blue-600 hover:text-blue-800 mr-3"
                             >
                               Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteWeek(row.weekDate)}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              Delete
                             </button>
                           </td>
                         </tr>
@@ -707,7 +795,7 @@ export default function MarketingDashboard() {
                       {weekRows.length === 0 && (
                         <tr>
                           <td
-                            colSpan={channelNames.length + 3}
+                            colSpan={channelNames.length + 4}
                             className="px-4 py-8 text-center text-gray-500"
                           >
                             No data yet. Click "Add Entry" to get started.
@@ -718,6 +806,7 @@ export default function MarketingDashboard() {
                     {weekRows.length > 0 && (
                       <tfoot className="bg-gray-100">
                         <tr>
+                          <td></td>
                           <td className="px-4 py-3 text-sm font-bold text-gray-900">
                             All Time Total
                           </td>

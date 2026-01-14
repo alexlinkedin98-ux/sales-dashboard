@@ -600,10 +600,8 @@ export function CallEntryForm({ reps, onSuccess, onCancel, editData }: CallEntry
                   className="w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 >
                   <option value="">Select outcome...</option>
-                  <option value="booked">Booked</option>
-                  <option value="follow_up">Follow-up</option>
-                  <option value="not_interested">Not Interested</option>
-                  <option value="no_show">No Show</option>
+                  <option value="won">Won</option>
+                  <option value="lost">Lost</option>
                 </select>
               </div>
 

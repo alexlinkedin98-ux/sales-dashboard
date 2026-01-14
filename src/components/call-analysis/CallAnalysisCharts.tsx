@@ -45,7 +45,7 @@ interface ScoreTrendChartProps {
 }
 
 // Calculate CBE from weekly averages
-// CBE = (P×2 + I×4 + N×3 + Ch×2 + D×1 + In×2 - situationPenalty) / 30 × 100
+// CBE = P×2 + I×4 + N×3 + Ch×2 + D×1 + In×2 - situationPenalty
 function calculateWeeklyCBE(week: WeeklyTrend): number {
   const p = week.avgProblemQuestions || 0;
   const i = week.avgImplicationQuestions || 0;
@@ -57,9 +57,8 @@ function calculateWeeklyCBE(week: WeeklyTrend): number {
 
   const positives = (p * 2) + (i * 4) + (n * 3) + (ch * 2) + (d * 1) + (ins * 2);
   const situationPenalty = Math.max(0, s - 5) * 0.5;
-  const duration = 30; // Default duration
 
-  return Math.round(((positives - situationPenalty) / duration) * 100);
+  return Math.round(positives - situationPenalty);
 }
 
 export function ScoreTrendChart({ trends, title }: ScoreTrendChartProps) {
@@ -193,7 +192,7 @@ export function SPINDistributionChart({ trends }: SPINDistributionChartProps) {
     <div className="bg-white p-4 rounded-lg border border-gray-200">
       <div className="flex items-center justify-between mb-4">
         <h4 className="text-sm font-medium text-gray-700">
-          SPIN Ratio Distribution
+          SPIN Distribution
         </h4>
         <div className="flex gap-3 text-xs">
           <span className="flex items-center gap-1">
@@ -315,7 +314,7 @@ export function CallVolumeChart({ trends }: CallVolumeChartProps) {
 
 interface RepComparisonChartProps {
   reps: RepData[];
-  metric: 'avgAiScoreOverall' | 'avgRepScoreOverall' | 'totalCalls' | 'avgChallenges' | 'avgInsights';
+  metric: 'avgAiScoreOverall' | 'avgRepScoreOverall' | 'totalCalls' | 'avgChallenges' | 'avgInsights' | 'cbe';
   title: string;
 }
 
@@ -340,6 +339,9 @@ export function RepComparisonChart({ reps, metric, title }: RepComparisonChartPr
             entry[rep.repName] = (weekData.avgChallenges || 0) + (weekData.avgDataPoints || 0);
           } else if (metric === 'avgInsights') {
             entry[rep.repName] = weekData.avgInsights || 0;
+          } else if (metric === 'cbe') {
+            // Calculate CBE from weekly averages
+            entry[rep.repName] = calculateWeeklyCBE(weekData);
           } else {
             entry[rep.repName] = weekData[metric] || 0;
           }

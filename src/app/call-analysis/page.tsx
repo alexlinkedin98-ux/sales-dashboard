@@ -10,7 +10,6 @@ import {
   ScoreTrendChart,
   SPINDistributionChart,
   ChallengerInsightChart,
-  ImprovementChart,
   RepComparisonChart,
   CBETrendChart,
 } from '@/components/call-analysis/CallAnalysisCharts';
@@ -90,14 +89,14 @@ interface DashboardData {
   lastUpdated: string;
 }
 
-type ViewMode = 'weekly' | 'individual' | 'comparison';
+type ViewMode = 'team-weekly' | 'individual-weekly' | 'individual' | 'comparison';
 
 export default function CallAnalysisDashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [reps, setReps] = useState<SalesRep[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedRep, setSelectedRep] = useState<string>('all');
-  const [viewMode, setViewMode] = useState<ViewMode>('weekly');
+  const [viewMode, setViewMode] = useState<ViewMode>('team-weekly');
   const [compareReps, setCompareReps] = useState<Set<string>>(new Set());
 
   // Modal states
@@ -352,7 +351,8 @@ export default function CallAnalysisDashboard() {
                 {/* View Mode Tabs */}
                 <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
                   {[
-                    { key: 'weekly', label: 'Weekly Trends' },
+                    { key: 'team-weekly', label: 'Team Weekly' },
+                    { key: 'individual-weekly', label: 'Individual Weekly' },
                     { key: 'individual', label: 'Individual Calls' },
                     { key: 'comparison', label: 'Comparison' },
                   ].map((tab) => (
@@ -370,7 +370,7 @@ export default function CallAnalysisDashboard() {
                   ))}
                 </div>
 
-                {/* Rep Selector */}
+                {/* Rep Selector - only for individual views and comparison */}
                 <div className="flex items-center gap-4">
                   {viewMode === 'comparison' ? (
                     <>
@@ -406,7 +406,7 @@ export default function CallAnalysisDashboard() {
                           ))}
                       </div>
                     </>
-                  ) : (
+                  ) : viewMode === 'individual-weekly' || viewMode === 'individual' ? (
                     <>
                       <label className="text-sm font-medium text-gray-900">
                         Sales Rep:
@@ -426,7 +426,7 @@ export default function CallAnalysisDashboard() {
                           ))}
                       </select>
                     </>
-                  )}
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -434,7 +434,312 @@ export default function CallAnalysisDashboard() {
 
           {/* Main Content */}
           <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            {viewMode === 'weekly' && (
+            {/* Team Weekly View - Aggregated team charts */}
+            {viewMode === 'team-weekly' && data && (
+              <div className="space-y-8">
+                {/* Team Averages Card */}
+                <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-100 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Team Overview</h3>
+
+                  {/* Primary Metrics Row */}
+                  <div className="grid grid-cols-6 gap-4 mb-6">
+                    <div className="text-center">
+                      <div className="text-xs text-gray-500 uppercase mb-1">Total Calls</div>
+                      <div className="text-3xl font-bold text-indigo-600">
+                        {data.overall.totalCalls}
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xs text-gray-500 uppercase mb-1 flex items-center justify-center gap-1">
+                        Team Avg CBE
+                        <div className="group relative">
+                          <svg className="w-3.5 h-3.5 text-gray-400 cursor-help" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                          </svg>
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all w-64 z-50 normal-case font-normal">
+                            <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                            <div className="font-semibold mb-2">Career Best Effort (CBE)</div>
+                            <div className="text-gray-300 mb-2">Inspired by Pat Riley&apos;s Lakers system from James Clear&apos;s Atomic Habits.</div>
+                            <div className="font-medium mb-1">Formula:</div>
+                            <div className="text-gray-300 text-[10px] space-y-0.5">
+                              <div>P×2 + I×4 + N×3 + Ch×2 + D×1 + In×2</div>
+                              <div>- Situation penalty (if S &gt; 5)</div>
+                            </div>
+                            <div className="mt-2 pt-2 border-t border-gray-700 text-gray-300 text-[10px]">
+                              <div><span className="font-medium">P</span>=Problem, <span className="font-medium">I</span>=Implication, <span className="font-medium">N</span>=Need-Payoff</div>
+                              <div><span className="font-medium">Ch</span>=Challenges, <span className="font-medium">D</span>=Data Points, <span className="font-medium">In</span>=Insights</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-3xl font-bold text-purple-600">
+                        {(() => {
+                          const allCalls = data.reps.flatMap(r => r.calls);
+                          if (allCalls.length === 0) return '-';
+                          const totalCBE = allCalls.reduce((sum, call) => {
+                            const p = call.problemQuestions || 0;
+                            const i = call.implicationQuestions || 0;
+                            const n = call.needPayoffQuestions || 0;
+                            const ch = call.challengesPresented || 0;
+                            const d = call.dataPointsShared || 0;
+                            const ins = call.insightsShared || 0;
+                            const s = call.situationQuestions || 0;
+                            const positives = (p * 2) + (i * 4) + (n * 3) + (ch * 2) + (d * 1) + (ins * 2);
+                            const penalty = Math.max(0, s - 5) * 0.5;
+                            return sum + Math.round(positives - penalty);
+                          }, 0);
+                          return Math.round(totalCBE / allCalls.length);
+                        })()}
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xs text-gray-500 uppercase mb-1 flex items-center justify-center gap-1">
+                        CBE-AI
+                        <div className="group relative">
+                          <svg className="w-3.5 h-3.5 text-gray-400 cursor-help" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                          </svg>
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all w-64 z-50 normal-case font-normal">
+                            <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                            <div className="font-semibold mb-2">CBE-AI (Quality-Adjusted)</div>
+                            <div className="text-gray-300 mb-2">Combines quantitative effort with qualitative execution.</div>
+                            <div className="font-medium mb-1">Formula:</div>
+                            <div className="text-gray-300 text-[10px] space-y-0.5">
+                              <div>CBE × (AI Score / 10)</div>
+                            </div>
+                            <div className="mt-2 pt-2 border-t border-gray-700 text-gray-300 text-[10px]">
+                              <div>High effort + good execution = high score</div>
+                              <div>High effort + poor execution = lower score</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-3xl font-bold text-emerald-600">
+                        {(() => {
+                          const allCalls = data.reps.flatMap(r => r.calls);
+                          if (allCalls.length === 0) return '-';
+                          const totalCBEAI = allCalls.reduce((sum, call) => {
+                            const p = call.problemQuestions || 0;
+                            const i = call.implicationQuestions || 0;
+                            const n = call.needPayoffQuestions || 0;
+                            const ch = call.challengesPresented || 0;
+                            const d = call.dataPointsShared || 0;
+                            const ins = call.insightsShared || 0;
+                            const s = call.situationQuestions || 0;
+                            const positives = (p * 2) + (i * 4) + (n * 3) + (ch * 2) + (d * 1) + (ins * 2);
+                            const penalty = Math.max(0, s - 5) * 0.5;
+                            const cbe = positives - penalty;
+                            const aiScore = call.aiScoreOverall || 5;
+                            return sum + (cbe * (aiScore / 10));
+                          }, 0);
+                          return Math.round(totalCBEAI / allCalls.length);
+                        })()}
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xs text-gray-500 uppercase mb-1">SPIN Score</div>
+                      <div className="text-3xl font-bold text-blue-600">
+                        {(() => {
+                          const allCalls = data.reps.flatMap(r => r.calls);
+                          if (allCalls.length === 0) return '-';
+                          const totalRatio = allCalls.reduce((sum, call) => {
+                            const s = call.situationQuestions || 0;
+                            const p = call.problemQuestions || 0;
+                            const i = call.implicationQuestions || 0;
+                            const n = call.needPayoffQuestions || 0;
+                            const total = s + p + i + n;
+                            if (total === 0) return sum;
+                            const sP = (s / total) * 100;
+                            const iP = (i / total) * 100;
+                            const nP = (n / total) * 100;
+                            const pP = (p / total) * 100;
+                            let score = 5;
+                            if (sP > 60) score -= 3;
+                            else if (sP > 50) score -= 2.5;
+                            else if (sP > 40) score -= 2;
+                            else if (sP > 30) score -= 1;
+                            else if (sP <= 15) score += 1;
+                            if (iP >= 25) score += 2;
+                            else if (iP >= 15) score += 1.5;
+                            else if (iP >= 10) score += 1;
+                            else if (iP === 0) score -= 1.5;
+                            if (nP >= 20) score += 2;
+                            else if (nP >= 10) score += 1.5;
+                            else if (nP >= 5) score += 1;
+                            else if (nP === 0) score -= 1;
+                            if (pP >= 15 && pP <= 35) score += 0.5;
+                            else if (pP === 0) score -= 0.5;
+                            return sum + Math.min(10, Math.max(1, Math.round(score)));
+                          }, 0);
+                          return (totalRatio / allCalls.length).toFixed(1);
+                        })()}/10
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xs text-gray-500 uppercase mb-1">Avg Challenger</div>
+                      <div className="text-3xl font-bold text-pink-600">
+                        {(() => {
+                          const allCalls = data.reps.flatMap(r => r.calls);
+                          if (allCalls.length === 0) return '-';
+                          const avgChallenges = allCalls.reduce((sum, call) => sum + (call.challengesPresented || 0), 0) / allCalls.length;
+                          const avgData = allCalls.reduce((sum, call) => sum + (call.dataPointsShared || 0), 0) / allCalls.length;
+                          return (avgChallenges + avgData).toFixed(1);
+                        })()}
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xs text-gray-500 uppercase mb-1">Avg Insights</div>
+                      <div className="text-3xl font-bold text-cyan-600">
+                        {(() => {
+                          const allCalls = data.reps.flatMap(r => r.calls);
+                          if (allCalls.length === 0) return '-';
+                          return (allCalls.reduce((sum, call) => sum + (call.insightsShared || 0), 0) / allCalls.length).toFixed(1);
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* AI vs Rep Score Comparison */}
+                  <div className="border-t border-indigo-200 pt-4">
+                    <div className="text-xs text-gray-500 uppercase mb-3 text-center">Score Comparison (AI vs Rep Self-Assessment)</div>
+                    <div className="grid grid-cols-2 gap-8">
+                      <div className="flex items-center justify-center gap-6">
+                        <div className="text-center">
+                          <div className="text-xs text-gray-400 mb-1">AI Score</div>
+                          <div className="text-2xl font-bold text-green-600">
+                            {data.overall.avgAiScoreOverall?.toFixed(1) || '-'}
+                          </div>
+                        </div>
+                        <div className="text-gray-300 text-2xl">vs</div>
+                        <div className="text-center">
+                          <div className="text-xs text-gray-400 mb-1">Rep Score</div>
+                          <div className="text-2xl font-bold text-blue-600">
+                            {data.overall.avgRepScoreOverall?.toFixed(1) || '-'}
+                          </div>
+                        </div>
+                        {data.overall.avgAiScoreOverall && data.overall.avgRepScoreOverall && (
+                          <div className={`text-sm font-medium px-2 py-1 rounded-full ${
+                            Math.abs(data.overall.avgAiScoreOverall - data.overall.avgRepScoreOverall) < 1
+                              ? 'bg-gray-100 text-gray-600'
+                              : data.overall.avgRepScoreOverall > data.overall.avgAiScoreOverall
+                              ? 'bg-yellow-100 text-yellow-700'
+                              : 'bg-blue-100 text-blue-700'
+                          }`}>
+                            {data.overall.avgRepScoreOverall > data.overall.avgAiScoreOverall ? '+' : ''}
+                            {(data.overall.avgRepScoreOverall - data.overall.avgAiScoreOverall).toFixed(1)} diff
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-center">
+                        <div className="text-xs text-gray-500 bg-white/50 rounded-lg px-3 py-2">
+                          {data.overall.avgRepScoreOverall && data.overall.avgAiScoreOverall ? (
+                            data.overall.avgRepScoreOverall > data.overall.avgAiScoreOverall + 0.5 ? (
+                              <span className="text-yellow-700">Reps tend to rate themselves higher than AI</span>
+                            ) : data.overall.avgRepScoreOverall < data.overall.avgAiScoreOverall - 0.5 ? (
+                              <span className="text-blue-700">Reps are more critical than AI assessment</span>
+                            ) : (
+                              <span className="text-green-700">AI and Rep scores are well aligned</span>
+                            )
+                          ) : (
+                            <span className="text-gray-400">Not enough data for comparison</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Team Aggregated Charts */}
+                {(() => {
+                  // Aggregate weekly trends across all reps
+                  const allWeeklyTrends = data.reps.flatMap(r => r.weeklyTrends);
+                  const weekMap = new Map<string, WeeklyTrend[]>();
+
+                  allWeeklyTrends.forEach(trend => {
+                    const key = trend.weekLabel;
+                    if (!weekMap.has(key)) {
+                      weekMap.set(key, []);
+                    }
+                    weekMap.get(key)!.push(trend);
+                  });
+
+                  const teamTrends: WeeklyTrend[] = Array.from(weekMap.entries())
+                    .map(([weekLabel, trends]) => {
+                      const totalCalls = trends.reduce((sum, t) => sum + t.totalCalls, 0);
+                      return {
+                        weekStart: trends[0].weekStart,
+                        weekLabel,
+                        totalCalls,
+                        avgSituationQuestions: trends.reduce((sum, t) => sum + t.avgSituationQuestions * t.totalCalls, 0) / totalCalls,
+                        avgProblemQuestions: trends.reduce((sum, t) => sum + t.avgProblemQuestions * t.totalCalls, 0) / totalCalls,
+                        avgImplicationQuestions: trends.reduce((sum, t) => sum + t.avgImplicationQuestions * t.totalCalls, 0) / totalCalls,
+                        avgNeedPayoffQuestions: trends.reduce((sum, t) => sum + t.avgNeedPayoffQuestions * t.totalCalls, 0) / totalCalls,
+                        avgChallenges: trends.reduce((sum, t) => sum + t.avgChallenges * t.totalCalls, 0) / totalCalls,
+                        avgDataPoints: trends.reduce((sum, t) => sum + t.avgDataPoints * t.totalCalls, 0) / totalCalls,
+                        avgInsights: trends.reduce((sum, t) => sum + t.avgInsights * t.totalCalls, 0) / totalCalls,
+                        avgAiScoreOverall: (() => {
+                          const validTrends = trends.filter(t => t.avgAiScoreOverall !== null);
+                          if (validTrends.length === 0) return null;
+                          const totalValidCalls = validTrends.reduce((sum, t) => sum + t.totalCalls, 0);
+                          return validTrends.reduce((sum, t) => sum + (t.avgAiScoreOverall || 0) * t.totalCalls, 0) / totalValidCalls;
+                        })(),
+                        avgRepScoreOverall: (() => {
+                          const validTrends = trends.filter(t => t.avgRepScoreOverall !== null);
+                          if (validTrends.length === 0) return null;
+                          const totalValidCalls = validTrends.reduce((sum, t) => sum + t.totalCalls, 0);
+                          return validTrends.reduce((sum, t) => sum + (t.avgRepScoreOverall || 0) * t.totalCalls, 0) / totalValidCalls;
+                        })(),
+                      };
+                    })
+                    .sort((a, b) => new Date(a.weekStart).getTime() - new Date(b.weekStart).getTime());
+
+                  if (teamTrends.length === 0) {
+                    return (
+                      <div className="text-center py-12 text-gray-500">
+                        No weekly data available yet
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-6">
+                      {/* Combined Score - CBE */}
+                      <div>
+                        <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Combined Score (Qualitative + Quantitative)</h4>
+                        <CBETrendChart trends={teamTrends} />
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Qualitative Analysis */}
+                        <div>
+                          <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Qualitative Analysis</h4>
+                          <ScoreTrendChart
+                            trends={teamTrends}
+                            title="Score Trends (AI & Rep)"
+                          />
+                        </div>
+
+                        {/* Quantitative Analysis */}
+                        <div>
+                          <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Quantitative Analysis</h4>
+                          <div className="space-y-4">
+                            <SPINDistributionChart trends={teamTrends} />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Quantitative Analysis - Challenger & Insight</h4>
+                        <ChallengerInsightChart trends={teamTrends} />
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* Individual Weekly View - Per-rep charts */}
+            {viewMode === 'individual-weekly' && (
               <div className="space-y-8">
                 {filteredReps.map((rep) => (
                   <div key={rep.repId} className="space-y-6">
@@ -449,15 +754,36 @@ export default function CallAnalysisDashboard() {
 
                     {/* Charts */}
                     {rep.weeklyTrends.length > 0 && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <CBETrendChart trends={rep.weeklyTrends} />
-                        <ScoreTrendChart
-                          trends={rep.weeklyTrends}
-                          title={`${rep.repName} - Score Trends`}
-                        />
-                        <SPINDistributionChart trends={rep.weeklyTrends} />
-                        <ChallengerInsightChart trends={rep.weeklyTrends} />
-                        <ImprovementChart trends={rep.weeklyTrends} />
+                      <div className="space-y-6">
+                        {/* Combined Score - CBE */}
+                        <div>
+                          <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Combined Score (Qualitative + Quantitative)</h4>
+                          <CBETrendChart trends={rep.weeklyTrends} />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {/* Qualitative Analysis */}
+                          <div>
+                            <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Qualitative Analysis</h4>
+                            <ScoreTrendChart
+                              trends={rep.weeklyTrends}
+                              title="Score Trends (AI & Rep)"
+                            />
+                          </div>
+
+                          {/* Quantitative Analysis */}
+                          <div>
+                            <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Quantitative Analysis</h4>
+                            <div className="space-y-4">
+                              <SPINDistributionChart trends={rep.weeklyTrends} />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Quantitative Analysis - Challenger & Insight</h4>
+                          <ChallengerInsightChart trends={rep.weeklyTrends} />
+                        </div>
                       </div>
                     )}
                   </div>
@@ -467,83 +793,6 @@ export default function CallAnalysisDashboard() {
 
             {viewMode === 'individual' && (
               <div className="space-y-8">
-                {/* Team Summary Card */}
-                {data && data.reps.length > 1 && (
-                  <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-100 p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Team Averages</h3>
-                    <div className="grid grid-cols-3 gap-6">
-                      <div className="text-center">
-                        <div className="text-xs text-gray-500 uppercase mb-1">Team Avg CBE</div>
-                        <div className="text-3xl font-bold text-purple-600">
-                          {(() => {
-                            const allCalls = data.reps.flatMap(r => r.calls);
-                            if (allCalls.length === 0) return '-';
-                            const totalCBE = allCalls.reduce((sum, call) => {
-                              const p = call.problemQuestions || 0;
-                              const i = call.implicationQuestions || 0;
-                              const n = call.needPayoffQuestions || 0;
-                              const ch = call.challengesPresented || 0;
-                              const d = call.dataPointsShared || 0;
-                              const ins = call.insightsShared || 0;
-                              const s = call.situationQuestions || 0;
-                              const positives = (p * 2) + (i * 4) + (n * 3) + (ch * 2) + (d * 1) + (ins * 2);
-                              const penalty = Math.max(0, s - 5) * 0.5;
-                              const duration = call.callDuration || 30;
-                              return sum + Math.round(((positives - penalty) / duration) * 100);
-                            }, 0);
-                            return Math.round(totalCBE / allCalls.length);
-                          })()}
-                        </div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-xs text-gray-500 uppercase mb-1">Team Avg AI Score</div>
-                        <div className="text-3xl font-bold text-green-600">
-                          {data.overall.avgAiScoreOverall?.toFixed(1) || '-'}
-                        </div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-xs text-gray-500 uppercase mb-1">Team Avg SPIN Ratio</div>
-                        <div className="text-3xl font-bold text-blue-600">
-                          {(() => {
-                            const allCalls = data.reps.flatMap(r => r.calls);
-                            if (allCalls.length === 0) return '-';
-                            const totalRatio = allCalls.reduce((sum, call) => {
-                              const s = call.situationQuestions || 0;
-                              const p = call.problemQuestions || 0;
-                              const i = call.implicationQuestions || 0;
-                              const n = call.needPayoffQuestions || 0;
-                              const total = s + p + i + n;
-                              if (total === 0) return sum;
-                              const sP = (s / total) * 100;
-                              const iP = (i / total) * 100;
-                              const nP = (n / total) * 100;
-                              const pP = (p / total) * 100;
-                              let score = 5;
-                              if (sP > 60) score -= 3;
-                              else if (sP > 50) score -= 2.5;
-                              else if (sP > 40) score -= 2;
-                              else if (sP > 30) score -= 1;
-                              else if (sP <= 15) score += 1;
-                              if (iP >= 25) score += 2;
-                              else if (iP >= 15) score += 1.5;
-                              else if (iP >= 10) score += 1;
-                              else if (iP === 0) score -= 1.5;
-                              if (nP >= 20) score += 2;
-                              else if (nP >= 10) score += 1.5;
-                              else if (nP >= 5) score += 1;
-                              else if (nP === 0) score -= 1;
-                              if (pP >= 15 && pP <= 35) score += 0.5;
-                              else if (pP === 0) score -= 0.5;
-                              return sum + Math.min(10, Math.max(1, Math.round(score)));
-                            }, 0);
-                            return (totalRatio / allCalls.length).toFixed(1);
-                          })()}/10
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
                 {filteredReps.map((rep) => (
                   <div
                     key={rep.repId}
@@ -558,6 +807,21 @@ export default function CallAnalysisDashboard() {
                       onView={(call) => handleViewCall(call, rep.repName)}
                       onEdit={handleEditCall}
                       onDelete={handleDeleteCall}
+                      onOutcomeChange={(id, outcome) => {
+                        // Update local state to reflect the change
+                        setData((prev) => {
+                          if (!prev) return prev;
+                          return {
+                            ...prev,
+                            reps: prev.reps.map((r) => ({
+                              ...r,
+                              calls: r.calls.map((c) =>
+                                c.id === id ? { ...c, outcome } : c
+                              ),
+                            })),
+                          };
+                        });
+                      }}
                     />
                   </div>
                 ))}
@@ -578,13 +842,61 @@ export default function CallAnalysisDashboard() {
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">
                           {rep.repName}
                         </h3>
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-5 gap-3">
                           <div className="text-center">
                             <div className="text-xs text-gray-500 uppercase">
                               Total Calls
                             </div>
                             <div className="text-xl font-bold text-indigo-600">
                               {rep.totals.totalCalls}
+                            </div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-xs text-gray-500 uppercase">
+                              Avg CBE
+                            </div>
+                            <div className="text-xl font-bold text-purple-600">
+                              {(() => {
+                                if (rep.calls.length === 0) return '-';
+                                const totalCBE = rep.calls.reduce((sum, call) => {
+                                  const p = call.problemQuestions || 0;
+                                  const i = call.implicationQuestions || 0;
+                                  const n = call.needPayoffQuestions || 0;
+                                  const ch = call.challengesPresented || 0;
+                                  const d = call.dataPointsShared || 0;
+                                  const ins = call.insightsShared || 0;
+                                  const s = call.situationQuestions || 0;
+                                  const positives = (p * 2) + (i * 4) + (n * 3) + (ch * 2) + (d * 1) + (ins * 2);
+                                  const penalty = Math.max(0, s - 5) * 0.5;
+                                  return sum + Math.round(positives - penalty);
+                                }, 0);
+                                return Math.round(totalCBE / rep.calls.length);
+                              })()}
+                            </div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-xs text-gray-500 uppercase">
+                              CBE-AI
+                            </div>
+                            <div className="text-xl font-bold text-emerald-600">
+                              {(() => {
+                                if (rep.calls.length === 0) return '-';
+                                const totalCBEAI = rep.calls.reduce((sum, call) => {
+                                  const p = call.problemQuestions || 0;
+                                  const i = call.implicationQuestions || 0;
+                                  const n = call.needPayoffQuestions || 0;
+                                  const ch = call.challengesPresented || 0;
+                                  const d = call.dataPointsShared || 0;
+                                  const ins = call.insightsShared || 0;
+                                  const s = call.situationQuestions || 0;
+                                  const positives = (p * 2) + (i * 4) + (n * 3) + (ch * 2) + (d * 1) + (ins * 2);
+                                  const penalty = Math.max(0, s - 5) * 0.5;
+                                  const cbe = positives - penalty;
+                                  const aiScore = call.aiScoreOverall || 5;
+                                  return sum + (cbe * (aiScore / 10));
+                                }, 0);
+                                return Math.round(totalCBEAI / rep.calls.length);
+                              })()}
                             </div>
                           </div>
                           <div className="text-center">
@@ -604,18 +916,41 @@ export default function CallAnalysisDashboard() {
                             </div>
                           </div>
                         </div>
-                        <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-gray-100">
+                        <div className="grid grid-cols-4 gap-3 mt-4 pt-4 border-t border-gray-100">
                           <div className="text-center">
                             <div className="text-xs text-gray-500 uppercase">
-                              Avg SPIN
+                              SPIN Score
                             </div>
-                            <div className="text-xl font-bold text-purple-600">
-                              {(
-                                rep.totals.avgSituationQuestions +
-                                rep.totals.avgProblemQuestions +
-                                rep.totals.avgImplicationQuestions +
-                                rep.totals.avgNeedPayoffQuestions
-                              ).toFixed(1)}
+                            <div className="text-xl font-bold text-blue-600">
+                              {(() => {
+                                const s = rep.totals.avgSituationQuestions;
+                                const p = rep.totals.avgProblemQuestions;
+                                const i = rep.totals.avgImplicationQuestions;
+                                const n = rep.totals.avgNeedPayoffQuestions;
+                                const total = s + p + i + n;
+                                if (total === 0) return '-';
+                                const sP = (s / total) * 100;
+                                const iP = (i / total) * 100;
+                                const nP = (n / total) * 100;
+                                const pP = (p / total) * 100;
+                                let score = 5;
+                                if (sP > 60) score -= 3;
+                                else if (sP > 50) score -= 2.5;
+                                else if (sP > 40) score -= 2;
+                                else if (sP > 30) score -= 1;
+                                else if (sP <= 15) score += 1;
+                                if (iP >= 25) score += 2;
+                                else if (iP >= 15) score += 1.5;
+                                else if (iP >= 10) score += 1;
+                                else if (iP === 0) score -= 1.5;
+                                if (nP >= 20) score += 2;
+                                else if (nP >= 10) score += 1.5;
+                                else if (nP >= 5) score += 1;
+                                else if (nP === 0) score -= 1;
+                                if (pP >= 15 && pP <= 35) score += 0.5;
+                                else if (pP === 0) score -= 0.5;
+                                return Math.min(10, Math.max(1, Math.round(score)));
+                              })()}/10
                             </div>
                           </div>
                           <div className="text-center">
@@ -623,10 +958,15 @@ export default function CallAnalysisDashboard() {
                               Avg Challenger
                             </div>
                             <div className="text-xl font-bold text-pink-600">
-                              {(
-                                rep.totals.avgChallenges +
-                                rep.totals.avgDataPoints
-                              ).toFixed(1)}
+                              {rep.totals.avgChallenges.toFixed(1)}
+                            </div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-xs text-gray-500 uppercase">
+                              Avg Data Points
+                            </div>
+                            <div className="text-xl font-bold text-orange-600">
+                              {rep.totals.avgDataPoints.toFixed(1)}
                             </div>
                           </div>
                           <div className="text-center">
@@ -644,32 +984,37 @@ export default function CallAnalysisDashboard() {
 
                 {/* Comparison Charts */}
                 {compareReps.size > 0 && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-6">
+                    {/* CBE Comparison - Full Width */}
                     <RepComparisonChart
                       reps={data.reps.filter((r) => compareReps.has(r.repId))}
-                      metric="avgAiScoreOverall"
-                      title="AI Score Comparison"
+                      metric="cbe"
+                      title="CBE Comparison (Career Best Effort)"
                     />
-                    <RepComparisonChart
-                      reps={data.reps.filter((r) => compareReps.has(r.repId))}
-                      metric="avgRepScoreOverall"
-                      title="Rep Score Comparison"
-                    />
-                    <RepComparisonChart
-                      reps={data.reps.filter((r) => compareReps.has(r.repId))}
-                      metric="avgChallenges"
-                      title="Challenger Score Comparison (Challenges + Data Points)"
-                    />
-                    <RepComparisonChart
-                      reps={data.reps.filter((r) => compareReps.has(r.repId))}
-                      metric="avgInsights"
-                      title="Insights Comparison"
-                    />
-                    <RepComparisonChart
-                      reps={data.reps.filter((r) => compareReps.has(r.repId))}
-                      metric="totalCalls"
-                      title="Call Volume Comparison"
-                    />
+
+                    {/* Other Comparisons - 2 columns */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <RepComparisonChart
+                        reps={data.reps.filter((r) => compareReps.has(r.repId))}
+                        metric="avgAiScoreOverall"
+                        title="AI Score Comparison"
+                      />
+                      <RepComparisonChart
+                        reps={data.reps.filter((r) => compareReps.has(r.repId))}
+                        metric="avgRepScoreOverall"
+                        title="Rep Score Comparison"
+                      />
+                      <RepComparisonChart
+                        reps={data.reps.filter((r) => compareReps.has(r.repId))}
+                        metric="avgChallenges"
+                        title="Challenger Score Comparison (Challenges + Data Points)"
+                      />
+                      <RepComparisonChart
+                        reps={data.reps.filter((r) => compareReps.has(r.repId))}
+                        metric="avgInsights"
+                        title="Insights Comparison"
+                      />
+                    </div>
                   </div>
                 )}
               </div>

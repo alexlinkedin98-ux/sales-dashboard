@@ -35,10 +35,8 @@ interface CallDetailModalProps {
 }
 
 const OUTCOME_LABELS: Record<string, { label: string; color: string }> = {
-  booked: { label: 'Booked Next Step', color: 'bg-green-100 text-green-800' },
-  follow_up: { label: 'Follow-up Needed', color: 'bg-yellow-100 text-yellow-800' },
-  not_interested: { label: 'Not Interested', color: 'bg-red-100 text-red-800' },
-  no_show: { label: 'No Show', color: 'bg-gray-100 text-gray-800' },
+  won: { label: 'Won', color: 'bg-green-100 text-green-800' },
+  lost: { label: 'Lost', color: 'bg-red-100 text-red-800' },
 };
 
 function ScoreComparison({

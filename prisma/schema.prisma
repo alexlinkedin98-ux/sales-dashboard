@@ -20,6 +20,62 @@ model SalesRep {
   entries   WeeklyEntry[]
   callAnalyses     CallAnalysis[]
   weeklyCallStats  WeeklyCallStats[]
+  upsellEntries    UpsellEntry[]
+  triageEntries    TriageEntry[]
+}
+
+// Weekly Triage Data Entries (triage calls tracking)
+model TriageEntry {
+  id                String   @id @default(cuid())
+
+  // Relationship to sales rep
+  salesRepId        String
+  salesRep          SalesRep @relation(fields: [salesRepId], references: [id], onDelete: Cascade)
+
+  // Week information
+  weekStartDate     DateTime
+  weekLabel         String   // e.g., "January 1 2026"
+
+  // Triage Funnel Stages
+  triageBooked      Int      @default(0)  // How many triage calls booked
+  triageTaken       Int      @default(0)  // How many triage calls actually taken
+  qualifiedForIntro Int      @default(0)  // How many qualified for intro call
+
+  // Timestamps
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Unique constraint - one entry per rep per week
+  @@unique([salesRepId, weekStartDate])
+}
+
+// Weekly Upsell Data Entries (internal sales to existing customers)
+model UpsellEntry {
+  id                String   @id @default(cuid())
+
+  // Relationship to sales rep
+  salesRepId        String
+  salesRep          SalesRep @relation(fields: [salesRepId], references: [id], onDelete: Cascade)
+
+  // Week information
+  weekStartDate     DateTime
+  weekLabel         String   // e.g., "January 1 2026"
+
+  // Upsell Funnel Stages
+  outreachCount     Int      @default(0)  // How many outreach attempts
+  meetingsBooked    Int      @default(0)  // How many meetings booked
+  proposalsMade     Int      @default(0)  // How many proposals made
+  dealsClosed       Int      @default(0)  // How many upsells closed
+
+  // Revenue
+  upsellRevenue     Float    @default(0)  // MRR from upsells
+
+  // Timestamps
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Unique constraint - one entry per rep per week
+  @@unique([salesRepId, weekStartDate])
 }
 
 // Weekly Sales Data Entries
