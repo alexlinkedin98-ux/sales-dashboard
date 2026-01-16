@@ -4,6 +4,8 @@
 import { useState, useEffect } from 'react';
 import { ChangeHistory } from '@/components/ChangeHistory';
 import { TriageEntryForm } from '@/components/TriageEntryForm';
+import { ChatBot } from '@/components/ChatBot';
+import { Navigation } from '@/components/Navigation';
 
 interface TriageEntry {
   id: string;
@@ -63,7 +65,14 @@ export default function TriagePage() {
   const [viewMode, setViewMode] = useState<ViewMode>('weekly');
   const [selectedRep, setSelectedRep] = useState<string>('all');
   const [showEntryForm, setShowEntryForm] = useState(false);
-  const [editWeek, setEditWeek] = useState<string | undefined>(undefined);
+  const [editData, setEditData] = useState<{
+    id: string;
+    salesRepId: string;
+    weekStartDate: string;
+    triageBooked: number;
+    triageTaken: number;
+    qualifiedForIntro: number;
+  } | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -99,7 +108,7 @@ export default function TriagePage() {
 
   const handleEntrySuccess = () => {
     setShowEntryForm(false);
-    setEditWeek(undefined);
+    setEditData(null);
     fetchData();
   };
 
@@ -150,19 +159,12 @@ export default function TriagePage() {
                 </p>
               )}
             </div>
-            <div className="flex gap-2">
-              <a
-                href="/"
-                className="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
-              >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                Back to Sales
-              </a>
+            <div className="flex gap-2 items-center">
+              <Navigation currentPage="triage" />
+              <div className="w-px h-6 bg-gray-300 mx-1" />
               <button
                 onClick={() => {
-                  setEditWeek(undefined);
+                  setEditData(null);
                   setShowEntryForm(true);
                 }}
                 disabled={reps.length === 0}
@@ -334,7 +336,14 @@ export default function TriagePage() {
                             <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
                               <button
                                 onClick={() => {
-                                  setEditWeek(new Date(entry.weekDate).toISOString().split('T')[0]);
+                                  setEditData({
+                                    id: entry.id,
+                                    salesRepId: rep.repId,
+                                    weekStartDate: new Date(entry.weekDate).toISOString().split('T')[0],
+                                    triageBooked: entry.triageBooked,
+                                    triageTaken: entry.triageTaken,
+                                    qualifiedForIntro: entry.qualifiedForIntro,
+                                  });
                                   setShowEntryForm(true);
                                 }}
                                 className="text-blue-600 hover:text-blue-800 mr-2"
@@ -427,9 +436,9 @@ export default function TriagePage() {
           onSuccess={handleEntrySuccess}
           onCancel={() => {
             setShowEntryForm(false);
-            setEditWeek(undefined);
+            setEditData(null);
           }}
-          editWeek={editWeek}
+          editData={editData || undefined}
         />
       )}
 
@@ -441,6 +450,9 @@ export default function TriagePage() {
           </p>
         </div>
       </footer>
+
+      {/* AI Chat Assistant */}
+      <ChatBot context="triage" data={data ? { reps: data.reps, overall: data.overall, lastUpdated: data.lastUpdated } : undefined} />
     </div>
   );
 }

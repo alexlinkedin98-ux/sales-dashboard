@@ -22,6 +22,7 @@ model SalesRep {
   weeklyCallStats  WeeklyCallStats[]
   upsellEntries    UpsellEntry[]
   triageEntries    TriageEntry[]
+  reviewEntries    ReviewEntry[]
 }
 
 // Weekly Triage Data Entries (triage calls tracking)
@@ -268,6 +269,31 @@ model WeeklyCallStats {
   updatedAt             DateTime @updatedAt
 
   @@unique([salesRepId, weekStartDate])
+}
+
+// Monthly Review Tracking
+model ReviewEntry {
+  id              String   @id @default(cuid())
+
+  // Relationship to sales rep (who requested the reviews)
+  salesRepId      String
+  salesRep        SalesRep @relation(fields: [salesRepId], references: [id], onDelete: Cascade)
+
+  // Month information (first day of month)
+  monthStartDate  DateTime
+  monthLabel      String   // e.g., "January 2026"
+
+  // Review Tracking
+  reviewsRequested    Int      @default(0)  // How many reviews were requested
+  googleReviews       Int      @default(0)  // Google reviews received
+  clutchReviews       Int      @default(0)  // Clutch reviews received
+
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Unique constraint - one entry per rep per month
+  @@unique([salesRepId, monthStartDate])
 }
 
 // Change History Log for undo functionality

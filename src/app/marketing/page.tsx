@@ -10,6 +10,8 @@ import {
   MarketingCostMetricChart,
 } from '@/components/marketing/MarketingCharts';
 import { ChangeHistory } from '@/components/ChangeHistory';
+import { ChatBot } from '@/components/ChatBot';
+import { Navigation } from '@/components/Navigation';
 
 type ViewMode = 'weekly' | 'monthly' | 'quarterly' | 'annual' | 'comparison';
 
@@ -93,6 +95,9 @@ export default function MarketingDashboard() {
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats[]>([]);
   const [editingStats, setEditingStats] = useState<Record<string, { spend: number; clientsClosed: number }>>({});
   const [savingStats, setSavingStats] = useState(false);
+
+  // Trend chart channel selector
+  const [trendChannel, setTrendChannel] = useState<string>('all');
 
   const fetchData = async () => {
     try {
@@ -579,24 +584,14 @@ export default function MarketingDashboard() {
                 Track lead generation across marketing channels
               </p>
             </div>
-            <div className="flex gap-3">
-              <a
-                href="/"
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
-              >
-                Sales Dashboard
-              </a>
-              <a
-                href="/call-analysis"
-                className="px-4 py-2 text-sm font-medium text-white bg-cyan-600 rounded-md hover:bg-cyan-700 transition-colors"
-              >
-                Call Analysis
-              </a>
+            <div className="flex gap-3 items-center">
+              <Navigation currentPage="marketing" />
+              <div className="w-px h-6 bg-gray-300" />
               <a
                 href="/triage/marketing"
                 className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 transition-colors"
               >
-                Triage
+                Marketing Triage
               </a>
               <button
                 onClick={() => setShowChannelManager(true)}
@@ -839,10 +834,37 @@ export default function MarketingDashboard() {
 
               {data.combinedWeeklyData.length > 0 && (
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      {trendChannel === 'all' ? 'Total Leads Generated' : `${trendChannel} Leads`} - Weekly Trend
+                    </h3>
+                    <select
+                      value={trendChannel}
+                      onChange={(e) => setTrendChannel(e.target.value)}
+                      className="block w-48 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm text-gray-900"
+                    >
+                      <option value="all">All Channels</option>
+                      {data.channels.map((channel) => (
+                        <option key={channel.name} value={channel.name}>
+                          {channel.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   <MarketingTrendChart
-                    data={data.combinedWeeklyData}
-                    title="Total Leads Generated - Weekly Trend"
-                    color="#3B82F6"
+                    data={trendChannel === 'all'
+                      ? data.combinedWeeklyData
+                      : data.channels
+                          .find(c => c.name === trendChannel)
+                          ?.weeklyData.map(w => ({
+                            week: w.week,
+                            weekDate: new Date(w.weekDate),
+                            leadsGenerated: w.leadsGenerated,
+                          }))
+                          .sort((a, b) => a.weekDate.getTime() - b.weekDate.getTime()) || []
+                    }
+                    title=""
+                    color={trendChannel === 'all' ? '#3B82F6' : '#10B981'}
                   />
                 </div>
               )}
@@ -1567,6 +1589,9 @@ export default function MarketingDashboard() {
           {data?.lastUpdated && `• Last updated: ${new Date(data.lastUpdated).toLocaleString()}`}
         </div>
       </footer>
+
+      {/* AI Chat Assistant */}
+      <ChatBot context="marketing" data={data ? { channels: data.channels, lastUpdated: data.lastUpdated } : undefined} />
     </div>
   );
 }

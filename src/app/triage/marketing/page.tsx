@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { ChangeHistory } from '@/components/ChangeHistory';
 import { MarketingTriageEntryForm } from '@/components/marketing/MarketingTriageEntryForm';
+import { ChatBot } from '@/components/ChatBot';
+import { Navigation } from '@/components/Navigation';
 
 interface MarketingChannel {
   id: string;
@@ -141,16 +143,9 @@ export default function MarketingTriageDashboard() {
               <h1 className="text-2xl font-bold text-gray-900">Triage Dashboard</h1>
               <p className="text-sm text-gray-500">Track leads received by marketing channel</p>
             </div>
-            <div className="flex gap-2">
-              <a
-                href="/marketing"
-                className="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
-              >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                Back to Marketing
-              </a>
+            <div className="flex gap-2 items-center">
+              <Navigation currentPage="marketing-triage" />
+              <div className="w-px h-6 bg-gray-300 mx-1" />
               <button
                 onClick={() => {
                   setEditWeek(undefined);
@@ -453,6 +448,9 @@ export default function MarketingTriageDashboard() {
           editWeek={editWeek}
         />
       )}
+
+      {/* AI Chat Assistant */}
+      <ChatBot context="marketing-triage" data={data ? { channels: data.channels, overallTotal: data.overallTotal, lastUpdated: data.lastUpdated } : undefined} />
     </div>
   );
 }

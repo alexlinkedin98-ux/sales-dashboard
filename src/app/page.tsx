@@ -12,6 +12,8 @@ import {
 import { EntryForm } from '@/components/EntryForm';
 import { RepManager } from '@/components/RepManager';
 import { ChangeHistory } from '@/components/ChangeHistory';
+import { ChatBot } from '@/components/ChatBot';
+import { Navigation } from '@/components/Navigation';
 
 type ViewMode = 'weekly' | 'monthly' | 'quarterly' | 'annual' | 'comparison';
 
@@ -202,44 +204,9 @@ export default function Dashboard() {
                 </p>
               )}
             </div>
-            <div className="flex gap-2">
-              <a
-                href="/call-analysis"
-                className="inline-flex items-center px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors text-sm font-medium"
-              >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                </svg>
-                Sales Calls
-              </a>
-              <a
-                href="/marketing"
-                className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
-              >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
-                </svg>
-                Marketing
-              </a>
-              <a
-                href="/upsells"
-                className="inline-flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium"
-              >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                </svg>
-                Upsells
-              </a>
-              <a
-                href="/triage"
-                className="inline-flex items-center px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-sm font-medium"
-              >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                Triage
-              </a>
+            <div className="flex gap-2 flex-wrap items-center">
+              <Navigation currentPage="sales" />
+              <div className="h-6 w-px bg-gray-300 mx-1" />
               <button
                 onClick={() => setShowRepManager(true)}
                 className="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
@@ -1000,6 +967,9 @@ export default function Dashboard() {
           onClose={() => setShowRepManager(false)}
         />
       )}
+
+      {/* AI Chat Assistant */}
+      <ChatBot context="sales" data={data ? { reps: data.reps, lastUpdated: data.lastUpdated } : undefined} />
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { ChangeHistory } from '@/components/ChangeHistory';
+import { Navigation } from '@/components/Navigation';
 
 interface UpsellEntry {
   id: string;
@@ -187,16 +188,9 @@ export default function UpsellsPage() {
                 </p>
               )}
             </div>
-            <div className="flex gap-2">
-              <a
-                href="/"
-                className="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
-              >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                Back to Sales
-              </a>
+            <div className="flex gap-2 items-center">
+              <Navigation currentPage="upsells" />
+              <div className="w-px h-6 bg-gray-300 mx-1" />
               <button
                 onClick={() => {
                   setEditEntry({
