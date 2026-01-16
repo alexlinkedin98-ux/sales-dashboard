@@ -592,6 +592,12 @@ export default function MarketingDashboard() {
               >
                 Call Analysis
               </a>
+              <a
+                href="/triage/marketing"
+                className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 transition-colors"
+              >
+                Triage
+              </a>
               <button
                 onClick={() => setShowChannelManager(true)}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"

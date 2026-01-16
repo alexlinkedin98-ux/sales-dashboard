@@ -12,7 +12,6 @@ import {
 import { EntryForm } from '@/components/EntryForm';
 import { RepManager } from '@/components/RepManager';
 import { ChangeHistory } from '@/components/ChangeHistory';
-import { TriageDropdown } from '@/components/TriageDropdown';
 
 type ViewMode = 'weekly' | 'monthly' | 'quarterly' | 'annual' | 'comparison';
 
@@ -232,7 +231,15 @@ export default function Dashboard() {
                 </svg>
                 Upsells
               </a>
-              <TriageDropdown />
+              <a
+                href="/triage"
+                className="inline-flex items-center px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-sm font-medium"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                Triage
+              </a>
               <button
                 onClick={() => setShowRepManager(true)}
                 className="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
