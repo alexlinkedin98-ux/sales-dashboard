@@ -8,7 +8,7 @@ interface Message {
 }
 
 interface ChatBotProps {
-  context: 'sales' | 'triage' | 'marketing' | 'marketing-triage';
+  context: 'sales' | 'triage' | 'marketing' | 'marketing-triage' | 'follow-ups';
   data?: Record<string, unknown>;
 }
 
@@ -44,6 +44,8 @@ export function ChatBot({ context, data }: ChatBotProps) {
         return 'Marketing Assistant';
       case 'marketing-triage':
         return 'Marketing Triage Assistant';
+      case 'follow-ups':
+        return 'Follow-up Assistant';
       default:
         return 'Dashboard Assistant';
     }
@@ -59,6 +61,8 @@ export function ChatBot({ context, data }: ChatBotProps) {
         return 'orange';
       case 'marketing-triage':
         return 'purple';
+      case 'follow-ups':
+        return 'rose';
       default:
         return 'gray';
     }
@@ -91,6 +95,12 @@ export function ChatBot({ context, data }: ChatBotProps) {
           'Which channel brings the most leads?',
           'What are the lead trends this month?',
           'How do channels compare?',
+        ];
+      case 'follow-ups':
+        return [
+          'Write a follow-up email for this contact',
+          'Draft a friendly text message check-in',
+          'Help me craft a re-engagement email',
         ];
       default:
         return [];
@@ -164,6 +174,8 @@ export function ChatBot({ context, data }: ChatBotProps) {
             ? 'bg-teal-600 hover:bg-teal-700'
             : context === 'marketing'
             ? 'bg-orange-600 hover:bg-orange-700'
+            : context === 'follow-ups'
+            ? 'bg-rose-600 hover:bg-rose-700'
             : 'bg-purple-600 hover:bg-purple-700'
         } text-white`}
         title={isOpen ? 'Close chat' : 'Open AI assistant'}
@@ -199,6 +211,8 @@ export function ChatBot({ context, data }: ChatBotProps) {
               ? 'bg-teal-50'
               : color === 'orange'
               ? 'bg-orange-50'
+              : color === 'rose'
+              ? 'bg-rose-50'
               : 'bg-purple-50'
           }`}
         >
@@ -212,6 +226,8 @@ export function ChatBot({ context, data }: ChatBotProps) {
                     ? 'bg-teal-100'
                     : color === 'orange'
                     ? 'bg-orange-100'
+                    : color === 'rose'
+                    ? 'bg-rose-100'
                     : 'bg-purple-100'
                 }`}
               >
@@ -223,6 +239,8 @@ export function ChatBot({ context, data }: ChatBotProps) {
                       ? 'text-teal-600'
                       : color === 'orange'
                       ? 'text-orange-600'
+                      : color === 'rose'
+                      ? 'text-rose-600'
                       : 'text-purple-600'
                   }`}
                   fill="none"
@@ -283,6 +301,8 @@ export function ChatBot({ context, data }: ChatBotProps) {
                     ? 'bg-teal-100'
                     : color === 'orange'
                     ? 'bg-orange-100'
+                    : color === 'rose'
+                    ? 'bg-rose-100'
                     : 'bg-purple-100'
                 }`}
               >
@@ -294,6 +314,8 @@ export function ChatBot({ context, data }: ChatBotProps) {
                       ? 'text-teal-600'
                       : color === 'orange'
                       ? 'text-orange-600'
+                      : color === 'rose'
+                      ? 'text-rose-600'
                       : 'text-purple-600'
                   }`}
                   fill="none"
@@ -327,6 +349,8 @@ export function ChatBot({ context, data }: ChatBotProps) {
                         ? 'border-teal-200 text-teal-700 hover:bg-teal-50'
                         : color === 'orange'
                         ? 'border-orange-200 text-orange-700 hover:bg-orange-50'
+                        : color === 'rose'
+                        ? 'border-rose-200 text-rose-700 hover:bg-rose-50'
                         : 'border-purple-200 text-purple-700 hover:bg-purple-50'
                     }`}
                   >
@@ -350,6 +374,8 @@ export function ChatBot({ context, data }: ChatBotProps) {
                         ? 'bg-teal-600 text-white'
                         : color === 'orange'
                         ? 'bg-orange-600 text-white'
+                        : color === 'rose'
+                        ? 'bg-rose-600 text-white'
                         : 'bg-purple-600 text-white'
                       : 'bg-gray-100 text-gray-900'
                   }`}
@@ -401,6 +427,8 @@ export function ChatBot({ context, data }: ChatBotProps) {
                   ? 'bg-teal-600 hover:bg-teal-700 text-white'
                   : color === 'orange'
                   ? 'bg-orange-600 hover:bg-orange-700 text-white'
+                  : color === 'rose'
+                  ? 'bg-rose-600 hover:bg-rose-700 text-white'
                   : 'bg-purple-600 hover:bg-purple-700 text-white'
               }`}
             >

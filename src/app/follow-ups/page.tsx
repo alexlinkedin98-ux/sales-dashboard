@@ -1,10 +1,11 @@
 'use client';
 
-// Follow-ups page with Reset functionality and Change History
+// Follow-ups page with Reset functionality, Change History, and ChatBot
 import { useState, useEffect } from 'react';
-import { format, formatDistanceToNow, isPast, isToday } from 'date-fns';
+import { format, formatDistanceToNow, isPast, isToday, subMonths, subQuarters, startOfMonth, startOfQuarter, startOfYear, isAfter } from 'date-fns';
 import { Navigation } from '@/components/Navigation';
 import { ChangeHistory } from '@/components/ChangeHistory';
+import { ChatBot } from '@/components/ChatBot';
 
 interface FollowUpSequence {
   id: string;
@@ -53,6 +54,7 @@ interface FollowUpSequence {
 }
 
 type ViewMode = 'active' | 'cooling' | 'won' | 'all';
+type StatsTimeFrame = 'all-time' | 'this-month' | 'last-month' | 'this-quarter' | 'last-quarter' | 'this-year';
 
 interface SalesRep {
   id: string;
@@ -81,6 +83,8 @@ export default function WarmFollowUpsPage() {
   const [editingContact, setEditingContact] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ email: '', phone: '' });
   const [callNotes, setCallNotes] = useState('');
+  const [showStats, setShowStats] = useState(false);
+  const [statsTimeFrame, setStatsTimeFrame] = useState<StatsTimeFrame>('all-time');
 
   useEffect(() => {
     fetchSequences();
@@ -300,6 +304,152 @@ export default function WarmFollowUpsPage() {
   const coolingCount = repFilteredSequences.filter(s => s.status === 'cooling').length;
   const wonCount = repFilteredSequences.filter(s => s.status === 'won').length;
 
+  // Get start date for stats time frame filter
+  const getStatsStartDate = (): Date | null => {
+    const now = new Date();
+    switch (statsTimeFrame) {
+      case 'this-month':
+        return startOfMonth(now);
+      case 'last-month':
+        return startOfMonth(subMonths(now, 1));
+      case 'this-quarter':
+        return startOfQuarter(now);
+      case 'last-quarter':
+        return startOfQuarter(subQuarters(now, 1));
+      case 'this-year':
+        return startOfYear(now);
+      case 'all-time':
+      default:
+        return null;
+    }
+  };
+
+  // Get end date for stats time frame filter (for "last" periods)
+  const getStatsEndDate = (): Date | null => {
+    const now = new Date();
+    switch (statsTimeFrame) {
+      case 'last-month':
+        return startOfMonth(now); // End of last month = start of this month
+      case 'last-quarter':
+        return startOfQuarter(now); // End of last quarter = start of this quarter
+      default:
+        return null; // No end date for current periods or all-time
+    }
+  };
+
+  // Filter sequences by time frame (based on sequenceStartDate or when steps were completed)
+  const filterByTimeFrame = (seqs: FollowUpSequence[]): FollowUpSequence[] => {
+    const startDate = getStatsStartDate();
+    const endDate = getStatsEndDate();
+
+    if (!startDate) return seqs; // all-time
+
+    return seqs.filter(seq => {
+      const seqDate = new Date(seq.sequenceStartDate);
+      const afterStart = isAfter(seqDate, startDate) || seqDate.getTime() === startDate.getTime();
+      const beforeEnd = !endDate || seqDate < endDate;
+      return afterStart && beforeEnd;
+    });
+  };
+
+  // Calculate stats for the stats dashboard
+  const calculateStats = (seqs: FollowUpSequence[]) => {
+    const now = new Date();
+
+    // Count completed steps by type
+    let emailsSent = 0;
+    let textsSent = 0;
+    let callsMade = 0;
+    let pendingEmails = 0;
+    let pendingTexts = 0;
+    let pendingCalls = 0;
+    let overdueEmails = 0;
+    let overdueTexts = 0;
+    let overdueCalls = 0;
+
+    seqs.forEach(seq => {
+      if (seq.status === 'won' || seq.status === 'cooling') {
+        // For cooling/won, count what was completed
+        if (seq.step1Done) emailsSent++;
+        if (seq.step2Done) textsSent++;
+        if (seq.step3Done) emailsSent++;
+        if (seq.step4Done) callsMade++;
+        if (seq.step5Done) emailsSent++;
+      } else if (seq.status === 'active') {
+        // Count completed steps
+        if (seq.step1Done) emailsSent++;
+        if (seq.step2Done) textsSent++;
+        if (seq.step3Done) emailsSent++;
+        if (seq.step4Done) callsMade++;
+        if (seq.step5Done) emailsSent++;
+
+        // Count pending and overdue
+        if (!seq.step1Done) {
+          if (seq.step1Due && isPast(new Date(seq.step1Due))) {
+            overdueEmails++;
+          } else {
+            pendingEmails++;
+          }
+        } else if (!seq.step2Done) {
+          if (seq.step2Due && isPast(new Date(seq.step2Due))) {
+            overdueTexts++;
+          } else {
+            pendingTexts++;
+          }
+        } else if (!seq.step3Done) {
+          if (seq.step3Due && isPast(new Date(seq.step3Due))) {
+            overdueEmails++;
+          } else {
+            pendingEmails++;
+          }
+        } else if (!seq.step4Done) {
+          if (seq.step4Due && isPast(new Date(seq.step4Due))) {
+            overdueCalls++;
+          } else {
+            pendingCalls++;
+          }
+        } else if (!seq.step5Done) {
+          if (seq.step5Due && isPast(new Date(seq.step5Due))) {
+            overdueEmails++;
+          } else {
+            pendingEmails++;
+          }
+        }
+      }
+    });
+
+    return {
+      emailsSent,
+      textsSent,
+      callsMade,
+      totalCompleted: emailsSent + textsSent + callsMade,
+      pendingEmails,
+      pendingTexts,
+      pendingCalls,
+      totalPending: pendingEmails + pendingTexts + pendingCalls,
+      overdueEmails,
+      overdueTexts,
+      overdueCalls,
+      totalOverdue: overdueEmails + overdueTexts + overdueCalls,
+    };
+  };
+
+  // Team stats (filtered by time frame)
+  const timeFilteredSequences = filterByTimeFrame(sequences);
+  const teamStats = calculateStats(timeFilteredSequences);
+
+  // Per-rep stats (filtered by time frame)
+  const repStats = reps.map(rep => {
+    const repSeqs = timeFilteredSequences.filter(s => s.callAnalysis.salesRep.id === rep.id);
+    return {
+      rep,
+      stats: calculateStats(repSeqs),
+      activeCount: repSeqs.filter(s => s.status === 'active').length,
+      coolingCount: repSeqs.filter(s => s.status === 'cooling').length,
+      wonCount: repSeqs.filter(s => s.status === 'won').length,
+    };
+  }).filter(r => r.stats.totalCompleted > 0 || r.activeCount > 0 || r.coolingCount > 0 || r.wonCount > 0);
+
   const getCurrentStep = (seq: FollowUpSequence): number => {
     if (!seq.step1Done) return 1;
     if (!seq.step2Done) return 2;
@@ -385,7 +535,7 @@ export default function WarmFollowUpsPage() {
             <div className="flex gap-2 items-center">
               <Navigation currentPage="follow-ups" />
               <div className="w-px h-6 bg-gray-300 mx-1" />
-              <ChangeHistory />
+              <ChangeHistory entityType="FollowUpSequence" onUndo={fetchSequences} />
             </div>
           </div>
         </div>
@@ -449,9 +599,192 @@ export default function WarmFollowUpsPage() {
             >
               All ({repFilteredSequences.length})
             </button>
+
+            <div className="w-px h-6 bg-gray-300" />
+
+            {/* Stats Toggle */}
+            <button
+              onClick={() => setShowStats(!showStats)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                showStats
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              Stats
+              <svg className={`w-4 h-4 transition-transform ${showStats ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
           </div>
         </div>
       </div>
+
+      {/* Stats Dashboard Panel */}
+      {showStats && (
+        <div className="bg-gray-50 border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            {/* Time Frame Filter */}
+            <div className="mb-6 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span className="text-sm font-medium text-gray-700">Time Period:</span>
+                <select
+                  value={statsTimeFrame}
+                  onChange={(e) => setStatsTimeFrame(e.target.value as StatsTimeFrame)}
+                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                >
+                  <option value="all-time">All Time</option>
+                  <option value="this-month">This Month</option>
+                  <option value="last-month">Last Month</option>
+                  <option value="this-quarter">This Quarter</option>
+                  <option value="last-quarter">Last Quarter</option>
+                  <option value="this-year">This Year</option>
+                </select>
+              </div>
+              <span className="text-sm text-gray-500">
+                {timeFilteredSequences.length} sequence{timeFilteredSequences.length !== 1 ? 's' : ''} in period
+              </span>
+            </div>
+
+            {/* Team Stats */}
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                Team Overview
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                {/* Completed */}
+                <div className="bg-white rounded-lg border border-gray-200 p-4">
+                  <div className="text-2xl font-bold text-green-600">{teamStats.emailsSent}</div>
+                  <div className="text-sm text-gray-500">Emails Sent</div>
+                </div>
+                <div className="bg-white rounded-lg border border-gray-200 p-4">
+                  <div className="text-2xl font-bold text-green-600">{teamStats.textsSent}</div>
+                  <div className="text-sm text-gray-500">Texts Sent</div>
+                </div>
+                <div className="bg-white rounded-lg border border-gray-200 p-4">
+                  <div className="text-2xl font-bold text-green-600">{teamStats.callsMade}</div>
+                  <div className="text-sm text-gray-500">Calls Made</div>
+                </div>
+                {/* Pending */}
+                <div className="bg-white rounded-lg border border-gray-200 p-4">
+                  <div className="text-2xl font-bold text-amber-600">{teamStats.totalPending}</div>
+                  <div className="text-sm text-gray-500">Pending Tasks</div>
+                </div>
+                {/* Overdue */}
+                <div className="bg-white rounded-lg border border-gray-200 p-4">
+                  <div className={`text-2xl font-bold ${teamStats.totalOverdue > 0 ? 'text-red-600' : 'text-gray-400'}`}>
+                    {teamStats.totalOverdue}
+                  </div>
+                  <div className="text-sm text-gray-500">Overdue</div>
+                </div>
+                {/* Win count */}
+                <div className="bg-white rounded-lg border border-gray-200 p-4">
+                  <div className="text-2xl font-bold text-emerald-600">{timeFilteredSequences.filter(s => s.status === 'won').length}</div>
+                  <div className="text-sm text-gray-500">Total Wins</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Per-Rep Stats */}
+            {repStats.length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  Per Rep Breakdown
+                </h3>
+                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rep</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Active</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Cooling</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Won</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-green-600 uppercase tracking-wider">Emails</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-green-600 uppercase tracking-wider">Texts</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-green-600 uppercase tracking-wider">Calls</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-amber-600 uppercase tracking-wider">Pending</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-red-600 uppercase tracking-wider">Overdue</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {repStats.map(({ rep, stats, activeCount: ac, coolingCount: cc, wonCount: wc }) => (
+                        <tr key={rep.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span className="text-sm font-medium text-gray-900">{rep.name}</span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-center">
+                            <span className="text-sm text-rose-600 font-medium">{ac}</span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-center">
+                            <span className="text-sm text-blue-600 font-medium">{cc}</span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-center">
+                            <span className="text-sm text-emerald-600 font-medium">{wc}</span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-center">
+                            <span className="text-sm text-green-600">{stats.emailsSent}</span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-center">
+                            <span className="text-sm text-green-600">{stats.textsSent}</span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-center">
+                            <span className="text-sm text-green-600">{stats.callsMade}</span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-center">
+                            <span className={`text-sm ${stats.totalPending > 0 ? 'text-amber-600 font-medium' : 'text-gray-400'}`}>
+                              {stats.totalPending}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-center">
+                            <span className={`text-sm ${stats.totalOverdue > 0 ? 'text-red-600 font-bold' : 'text-gray-400'}`}>
+                              {stats.totalOverdue}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Quick breakdown of overdue items */}
+            {teamStats.totalOverdue > 0 && (
+              <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <h4 className="text-sm font-medium text-red-800 mb-2 flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  Overdue Breakdown
+                </h4>
+                <div className="flex flex-wrap gap-4 text-sm text-red-700">
+                  {teamStats.overdueEmails > 0 && (
+                    <span>{teamStats.overdueEmails} email{teamStats.overdueEmails !== 1 ? 's' : ''}</span>
+                  )}
+                  {teamStats.overdueTexts > 0 && (
+                    <span>{teamStats.overdueTexts} text{teamStats.overdueTexts !== 1 ? 's' : ''}</span>
+                  )}
+                  {teamStats.overdueCalls > 0 && (
+                    <span>{teamStats.overdueCalls} call{teamStats.overdueCalls !== 1 ? 's' : ''}</span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -1032,6 +1365,37 @@ export default function WarmFollowUpsPage() {
           </p>
         </div>
       </footer>
+
+      {/* ChatBot for crafting follow-up messages */}
+      <ChatBot
+        context="follow-ups"
+        data={{
+          activeSequences: filteredSequences.filter(s => s.status === 'active').map(s => ({
+            contactName: s.contactName,
+            contactEmail: s.contactEmail,
+            contactPhone: s.contactPhone,
+            callLabel: s.callAnalysis.callLabel,
+            callDate: s.callAnalysis.callDate,
+            transcript: s.callAnalysis.transcript,
+            salesRep: s.callAnalysis.salesRep.name,
+          })),
+          selectedSequence: expandedSequence ? (() => {
+            const seq = sequences.find(s => s.id === expandedSequence);
+            if (!seq) return null;
+            return {
+              contactName: seq.contactName,
+              contactEmail: seq.contactEmail,
+              contactPhone: seq.contactPhone,
+              callLabel: seq.callAnalysis.callLabel,
+              callDate: seq.callAnalysis.callDate,
+              transcript: seq.callAnalysis.transcript,
+              salesRep: seq.callAnalysis.salesRep.name,
+              currentCycle: seq.currentCycle,
+              step1Content: seq.step1Content,
+            };
+          })() : null,
+        }}
+      />
     </div>
   );
 }
