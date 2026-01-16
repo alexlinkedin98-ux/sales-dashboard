@@ -399,7 +399,7 @@ export default function WarmFollowUpsPage() {
             <select
               value={selectedRepId}
               onChange={(e) => setSelectedRepId(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium bg-white focus:outline-none focus:ring-2 focus:ring-rose-500"
+              className="px-4 py-2 border-2 border-gray-400 rounded-lg text-sm font-semibold bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 shadow-sm"
             >
               <option value="all">All Reps</option>
               {reps.map(rep => (
