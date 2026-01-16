@@ -5,6 +5,7 @@ export type EntityType =
   | 'TriageEntry'
   | 'UpsellEntry'
   | 'MarketingEntry'
+  | 'MarketingTriageEntry'
   | 'SalesRep'
   | 'MarketingChannel';
 
@@ -92,6 +93,9 @@ export async function undoChange(changeLogId: string): Promise<{ success: boolea
           case 'MarketingEntry':
             await prisma.marketingEntry.create({ data: { id: entityId, ...restoreData } });
             break;
+          case 'MarketingTriageEntry':
+            await prisma.marketingTriageEntry.create({ data: { id: entityId, ...restoreData } });
+            break;
           case 'SalesRep':
             await prisma.salesRep.create({ data: { id: entityId, ...restoreData } });
             break;
@@ -123,6 +127,9 @@ export async function undoChange(changeLogId: string): Promise<{ success: boolea
           case 'MarketingEntry':
             await prisma.marketingEntry.update({ where: { id: entityId }, data: updateData });
             break;
+          case 'MarketingTriageEntry':
+            await prisma.marketingTriageEntry.update({ where: { id: entityId }, data: updateData });
+            break;
           case 'SalesRep':
             await prisma.salesRep.update({ where: { id: entityId }, data: updateData });
             break;
@@ -147,6 +154,9 @@ export async function undoChange(changeLogId: string): Promise<{ success: boolea
             break;
           case 'MarketingEntry':
             await prisma.marketingEntry.delete({ where: { id: entityId } });
+            break;
+          case 'MarketingTriageEntry':
+            await prisma.marketingTriageEntry.delete({ where: { id: entityId } });
             break;
           case 'SalesRep':
             await prisma.salesRep.delete({ where: { id: entityId } });

@@ -110,12 +110,38 @@ model WeeklyEntry {
 
 // Marketing Channels
 model MarketingChannel {
-  id           String                 @id @default(cuid())
-  name         String                 @unique
-  createdAt    DateTime               @default(now())
-  updatedAt    DateTime               @updatedAt
-  entries      MarketingEntry[]
-  monthlyStats MonthlyMarketingStats[]
+  id            String                  @id @default(cuid())
+  name          String                  @unique
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+  entries       MarketingEntry[]
+  monthlyStats  MonthlyMarketingStats[]
+  triageEntries MarketingTriageEntry[]
+}
+
+// Weekly Marketing Triage Data Entries (marketing channel triage tracking)
+model MarketingTriageEntry {
+  id                String           @id @default(cuid())
+
+  // Relationship to marketing channel
+  channelId         String
+  channel           MarketingChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  // Week information
+  weekStartDate     DateTime
+  weekLabel         String   // e.g., "January 1 2026"
+
+  // Marketing Triage Funnel Stages
+  leadsReceived     Int      @default(0)  // How many leads received from this channel
+  leadsContacted    Int      @default(0)  // How many leads were contacted
+  leadsQualified    Int      @default(0)  // How many leads qualified for sales
+
+  // Timestamps
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Unique constraint - one entry per channel per week
+  @@unique([channelId, weekStartDate])
 }
 
 // Weekly Marketing Data Entries

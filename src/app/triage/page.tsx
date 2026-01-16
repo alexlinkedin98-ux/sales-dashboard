@@ -186,6 +186,12 @@ export default function TriagePage() {
                 </svg>
                 Back to Sales
               </a>
+              <a
+                href="/triage/marketing"
+                className="inline-flex items-center px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors text-sm font-medium"
+              >
+                Marketing Triage
+              </a>
               <button
                 onClick={() => {
                   setEditEntry({
