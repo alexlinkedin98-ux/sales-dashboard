@@ -12,8 +12,6 @@ interface ExistingWeekData {
   entries: {
     channelId: string;
     leadsReceived: number;
-    leadsContacted: number;
-    leadsQualified: number;
     id: string;
   }[];
 }
@@ -57,12 +55,6 @@ function getRecentMondays(): { date: string; label: string }[] {
   return mondays;
 }
 
-interface ChannelTriageValues {
-  leadsReceived: number;
-  leadsContacted: number;
-  leadsQualified: number;
-}
-
 export function MarketingTriageEntryForm({ channels, onSuccess, onCancel, editWeek }: MarketingTriageEntryFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,11 +66,11 @@ export function MarketingTriageEntryForm({ channels, onSuccess, onCancel, editWe
 
   const [selectedWeek, setSelectedWeek] = useState(editWeek || currentWeekMonday);
 
-  // Initialize channel values - one entry per channel with 3 fields
-  const [channelValues, setChannelValues] = useState<Record<string, ChannelTriageValues>>(() => {
-    const initial: Record<string, ChannelTriageValues> = {};
+  // Initialize channel values - one entry per channel with just leadsReceived
+  const [channelValues, setChannelValues] = useState<Record<string, number>>(() => {
+    const initial: Record<string, number> = {};
     channels.forEach(ch => {
-      initial[ch.id] = { leadsReceived: 0, leadsContacted: 0, leadsQualified: 0 };
+      initial[ch.id] = 0;
     });
     return initial;
   });
@@ -98,8 +90,6 @@ export function MarketingTriageEntryForm({ channels, onSuccess, onCancel, editWe
             weekStartDate: string;
             channelId: string;
             leadsReceived: number;
-            leadsContacted: number;
-            leadsQualified: number;
             id: string;
           }) => {
             const weekDate = e.weekStartDate.split('T')[0];
@@ -109,8 +99,6 @@ export function MarketingTriageEntryForm({ channels, onSuccess, onCancel, editWe
             weekMap.get(weekDate)!.entries.push({
               channelId: e.channelId,
               leadsReceived: e.leadsReceived,
-              leadsContacted: e.leadsContacted,
-              leadsQualified: e.leadsQualified,
               id: e.id,
             });
           });
@@ -128,16 +116,12 @@ export function MarketingTriageEntryForm({ channels, onSuccess, onCancel, editWe
   // When week changes or existing data loads, populate form
   useEffect(() => {
     const weekData = existingWeeks.find(w => w.weekStartDate === selectedWeek);
-    const newValues: Record<string, ChannelTriageValues> = {};
+    const newValues: Record<string, number> = {};
     const newIds: Record<string, string> = {};
 
     channels.forEach(ch => {
       const entry = weekData?.entries.find(e => e.channelId === ch.id);
-      newValues[ch.id] = {
-        leadsReceived: entry?.leadsReceived || 0,
-        leadsContacted: entry?.leadsContacted || 0,
-        leadsQualified: entry?.leadsQualified || 0,
-      };
+      newValues[ch.id] = entry?.leadsReceived || 0;
       if (entry?.id) {
         newIds[ch.id] = entry.id;
       }
@@ -155,20 +139,20 @@ export function MarketingTriageEntryForm({ channels, onSuccess, onCancel, editWe
     try {
       // Submit each channel that has values or needs updating
       const promises = channels.map(async (channel) => {
-        const values = channelValues[channel.id] || { leadsReceived: 0, leadsContacted: 0, leadsQualified: 0 };
+        const leadsReceived = channelValues[channel.id] || 0;
         const existingId = existingEntryIds[channel.id];
-        const hasValues = values.leadsReceived > 0 || values.leadsContacted > 0 || values.leadsQualified > 0;
+        const hasValues = leadsReceived > 0;
 
         if (existingId) {
           // Update existing entry
           if (!hasValues) {
-            // Delete if all zeros
+            // Delete if zero
             await fetch(`/api/marketing-triage/${existingId}`, { method: 'DELETE' });
           } else {
             await fetch(`/api/marketing-triage/${existingId}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(values),
+              body: JSON.stringify({ leadsReceived }),
             });
           }
         } else if (hasValues) {
@@ -179,7 +163,7 @@ export function MarketingTriageEntryForm({ channels, onSuccess, onCancel, editWe
             body: JSON.stringify({
               channelId: channel.id,
               weekStartDate: selectedWeek,
-              ...values,
+              leadsReceived,
             }),
           });
         }
@@ -194,34 +178,17 @@ export function MarketingTriageEntryForm({ channels, onSuccess, onCancel, editWe
     }
   };
 
-  const handleValueChange = (channelId: string, field: keyof ChannelTriageValues, value: number) => {
-    setChannelValues(prev => ({
-      ...prev,
-      [channelId]: { ...prev[channelId], [field]: value }
-    }));
-  };
-
   const weekHasData = existingWeeks.some(w => w.weekStartDate === selectedWeek);
 
-  // Calculate totals
-  const totals = channels.reduce(
-    (acc, ch) => {
-      const v = channelValues[ch.id] || { leadsReceived: 0, leadsContacted: 0, leadsQualified: 0 };
-      return {
-        leadsReceived: acc.leadsReceived + v.leadsReceived,
-        leadsContacted: acc.leadsContacted + v.leadsContacted,
-        leadsQualified: acc.leadsQualified + v.leadsQualified,
-      };
-    },
-    { leadsReceived: 0, leadsContacted: 0, leadsQualified: 0 }
-  );
+  // Calculate total
+  const total = channels.reduce((acc, ch) => acc + (channelValues[ch.id] || 0), 0);
 
   return (
     <div className="fixed inset-0 bg-gray-900/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-200">
+      <div className="bg-white rounded-lg shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-gray-200">
         <div className="p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            {weekHasData ? 'Edit Triage Entry' : 'Add Triage Entry'}
+            {weekHasData ? 'Edit Leads Received' : 'Add Leads Received'}
           </h2>
 
           {error && (
@@ -256,65 +223,40 @@ export function MarketingTriageEntryForm({ channels, onSuccess, onCancel, editWe
             {/* Channel Inputs */}
             <div className="border-t border-gray-200 pt-4">
               <h3 className="text-sm font-medium text-gray-900 mb-3">
-                Lead Triage by Channel
+                Leads Received by Channel
               </h3>
-
-              {/* Header row */}
-              <div className="flex items-center gap-2 mb-2 text-xs font-medium text-gray-500 uppercase">
-                <div className="flex-1">Channel</div>
-                <div className="w-20 text-center">Received</div>
-                <div className="w-20 text-center">Contacted</div>
-                <div className="w-20 text-center">Qualified</div>
-              </div>
 
               {fetchingEntries ? (
                 <div className="text-center text-gray-500 py-4">Loading...</div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {channels.map((channel) => (
-                    <div key={channel.id} className="flex items-center gap-2">
-                      <label className="flex-1 text-sm text-gray-700 truncate">
+                    <div key={channel.id} className="flex items-center justify-between gap-4">
+                      <label className="text-sm text-gray-700 truncate flex-1">
                         {channel.name}
                       </label>
                       <input
                         type="number"
-                        value={channelValues[channel.id]?.leadsReceived || 0}
-                        onChange={(e) => handleValueChange(channel.id, 'leadsReceived', parseInt(e.target.value) || 0)}
+                        value={channelValues[channel.id] || 0}
+                        onChange={(e) => setChannelValues(prev => ({
+                          ...prev,
+                          [channel.id]: parseInt(e.target.value) || 0
+                        }))}
                         min="0"
-                        className="w-20 rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-purple-500 focus:ring-purple-500 text-center text-sm"
-                      />
-                      <input
-                        type="number"
-                        value={channelValues[channel.id]?.leadsContacted || 0}
-                        onChange={(e) => handleValueChange(channel.id, 'leadsContacted', parseInt(e.target.value) || 0)}
-                        min="0"
-                        className="w-20 rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-purple-500 focus:ring-purple-500 text-center text-sm"
-                      />
-                      <input
-                        type="number"
-                        value={channelValues[channel.id]?.leadsQualified || 0}
-                        onChange={(e) => handleValueChange(channel.id, 'leadsQualified', parseInt(e.target.value) || 0)}
-                        min="0"
-                        className="w-20 rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-purple-500 focus:ring-purple-500 text-center text-sm"
+                        className="w-24 rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-purple-500 focus:ring-purple-500 text-center text-sm"
                       />
                     </div>
                   ))}
                 </div>
               )}
 
-              {/* Totals */}
-              <div className="flex items-center gap-2 mt-4 pt-3 border-t border-gray-200">
-                <span className="flex-1 text-sm font-semibold text-gray-900">
+              {/* Total */}
+              <div className="flex items-center justify-between gap-4 mt-4 pt-3 border-t border-gray-200">
+                <span className="text-sm font-semibold text-gray-900">
                   Total
                 </span>
-                <span className="w-20 text-center font-bold text-purple-600">
-                  {totals.leadsReceived}
-                </span>
-                <span className="w-20 text-center font-bold text-blue-600">
-                  {totals.leadsContacted}
-                </span>
-                <span className="w-20 text-center font-bold text-green-600">
-                  {totals.leadsQualified}
+                <span className="w-24 text-center font-bold text-purple-600 text-lg">
+                  {total}
                 </span>
               </div>
             </div>
@@ -333,7 +275,7 @@ export function MarketingTriageEntryForm({ channels, onSuccess, onCancel, editWe
                 disabled={loading}
                 className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 transition-colors disabled:opacity-50"
               >
-                {loading ? 'Saving...' : weekHasData ? 'Update Entry' : 'Add Entry'}
+                {loading ? 'Saving...' : weekHasData ? 'Update' : 'Add Entry'}
               </button>
             </div>
           </form>
