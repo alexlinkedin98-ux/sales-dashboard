@@ -54,6 +54,11 @@ interface FollowUpSequence {
 
 type ViewMode = 'active' | 'cooling' | 'won' | 'all';
 
+interface SalesRep {
+  id: string;
+  name: string;
+}
+
 // Step definitions for the 5-step sequence
 const STEPS = [
   { num: 1, type: 'email', label: 'Email 1', icon: 'envelope', description: 'AI-generated personalized email' },
@@ -67,6 +72,8 @@ export default function WarmFollowUpsPage() {
   const [sequences, setSequences] = useState<FollowUpSequence[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('active');
+  const [selectedRepId, setSelectedRepId] = useState<string>('all');
+  const [reps, setReps] = useState<SalesRep[]>([]);
   const [generatingEmail, setGeneratingEmail] = useState<string | null>(null);
   const [expandedSequence, setExpandedSequence] = useState<string | null>(null);
   const [expandedStep, setExpandedStep] = useState<number | null>(null); // Which step is expanded for viewing
@@ -77,7 +84,20 @@ export default function WarmFollowUpsPage() {
 
   useEffect(() => {
     fetchSequences();
+    fetchReps();
   }, []);
+
+  const fetchReps = async () => {
+    try {
+      const response = await fetch('/api/reps');
+      if (response.ok) {
+        const data = await response.json();
+        setReps(data);
+      }
+    } catch (error) {
+      console.error('Error fetching reps:', error);
+    }
+  };
 
   // Auto-expand the first active sequence when data loads or view mode changes to active
   useEffect(() => {
@@ -261,7 +281,13 @@ export default function WarmFollowUpsPage() {
     }
   };
 
-  const filteredSequences = sequences.filter(seq => {
+  // First filter by sales rep
+  const repFilteredSequences = selectedRepId === 'all'
+    ? sequences
+    : sequences.filter(seq => seq.callAnalysis.salesRep.id === selectedRepId);
+
+  // Then filter by status
+  const filteredSequences = repFilteredSequences.filter(seq => {
     if (viewMode === 'all') return true;
     if (viewMode === 'active') return seq.status === 'active';
     if (viewMode === 'cooling') return seq.status === 'cooling';
@@ -269,9 +295,10 @@ export default function WarmFollowUpsPage() {
     return true;
   });
 
-  const activeCount = sequences.filter(s => s.status === 'active').length;
-  const coolingCount = sequences.filter(s => s.status === 'cooling').length;
-  const wonCount = sequences.filter(s => s.status === 'won').length;
+  // Counts based on rep filter
+  const activeCount = repFilteredSequences.filter(s => s.status === 'active').length;
+  const coolingCount = repFilteredSequences.filter(s => s.status === 'cooling').length;
+  const wonCount = repFilteredSequences.filter(s => s.status === 'won').length;
 
   const getCurrentStep = (seq: FollowUpSequence): number => {
     if (!seq.step1Done) return 1;
@@ -367,7 +394,21 @@ export default function WarmFollowUpsPage() {
       {/* Stats Bar */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex flex-wrap gap-4">
+          <div className="flex flex-wrap items-center gap-4">
+            {/* Sales Rep Filter */}
+            <select
+              value={selectedRepId}
+              onChange={(e) => setSelectedRepId(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium bg-white focus:outline-none focus:ring-2 focus:ring-rose-500"
+            >
+              <option value="all">All Reps</option>
+              {reps.map(rep => (
+                <option key={rep.id} value={rep.id}>{rep.name}</option>
+              ))}
+            </select>
+
+            <div className="w-px h-6 bg-gray-300" />
+
             <button
               onClick={() => setViewMode('active')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -406,7 +447,7 @@ export default function WarmFollowUpsPage() {
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              All ({sequences.length})
+              All ({repFilteredSequences.length})
             </button>
           </div>
         </div>
