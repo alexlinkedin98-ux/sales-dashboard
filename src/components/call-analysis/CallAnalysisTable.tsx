@@ -33,6 +33,7 @@ interface CallAnalysisTableProps {
 const OUTCOME_LABELS: Record<string, { label: string; color: string }> = {
   won: { label: 'Won', color: 'bg-green-100 text-green-800' },
   lost: { label: 'Lost', color: 'bg-red-100 text-red-800' },
+  warm_follow_up: { label: 'Warm Follow-up', color: 'bg-amber-100 text-amber-800' },
 };
 
 // CBE (Career Best Effort) Score Calculation
@@ -428,12 +429,14 @@ export function CallAnalysisTable({
                       } ${
                         call.outcome === 'won' ? 'bg-green-100 text-green-800' :
                         call.outcome === 'lost' ? 'bg-red-100 text-red-800' :
+                        call.outcome === 'warm_follow_up' ? 'bg-amber-100 text-amber-800' :
                         'bg-gray-50 text-gray-500'
                       }`}
                     >
                       <option value="">-</option>
                       <option value="won">Won</option>
                       <option value="lost">Lost</option>
+                      <option value="warm_follow_up">Warm Follow-up</option>
                     </select>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-right">

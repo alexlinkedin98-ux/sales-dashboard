@@ -91,6 +91,7 @@ export async function PATCH(
     // Check if analysis exists
     const existing = await prisma.callAnalysis.findUnique({
       where: { id },
+      include: { followUpSequence: true },
     });
 
     if (!existing) {
@@ -102,6 +103,36 @@ export async function PATCH(
       data: body,
       include: { salesRep: true },
     });
+
+    // If outcome is being set to "warm_follow_up", create a follow-up sequence
+    if (body.outcome === 'warm_follow_up' && !existing.followUpSequence) {
+      const now = new Date();
+      const cooldownEndDate = new Date(now);
+      cooldownEndDate.setMonth(cooldownEndDate.getMonth() + 3); // 3 months from now
+
+      // Extract contact name from call label (e.g., "Discovery call with John Smith" -> "John Smith")
+      const contactName = existing.callLabel.replace(/^(Discovery call|Intro call|Call|Meeting) with /i, '').trim() || existing.callLabel;
+
+      await prisma.followUpSequence.create({
+        data: {
+          callAnalysisId: id,
+          contactName,
+          sequenceStartDate: now,
+          cooldownEndDate,
+          status: 'cooling',
+          currentCycle: 1,
+          email1Due: cooldownEndDate, // First email due when cooldown ends
+        },
+      });
+    }
+
+    // If outcome is being set to "won", mark the follow-up sequence as won
+    if (body.outcome === 'won' && existing.followUpSequence) {
+      await prisma.followUpSequence.update({
+        where: { id: existing.followUpSequence.id },
+        data: { status: 'won' },
+      });
+    }
 
     return NextResponse.json(analysis);
   } catch (error) {

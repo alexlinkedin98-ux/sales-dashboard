@@ -233,7 +233,10 @@ model CallAnalysis {
 
   // Metadata
   callDuration          Int?     // minutes
-  outcome               String?  // "booked", "follow_up", "not_interested", "no_show"
+  outcome               String?  // "booked", "follow_up", "not_interested", "no_show", "warm_follow_up", "won"
+
+  // Relation to follow-up sequence
+  followUpSequence      FollowUpSequence?
 
   // Timestamps
   createdAt             DateTime @default(now())
@@ -294,6 +297,48 @@ model ReviewEntry {
 
   // Unique constraint - one entry per rep per month
   @@unique([salesRepId, monthStartDate])
+}
+
+// Warm Follow-up Sequence for CRM-style outreach
+model FollowUpSequence {
+  id              String   @id @default(cuid())
+
+  // Link to the call analysis that triggered this sequence
+  callAnalysisId  String   @unique
+  callAnalysis    CallAnalysis @relation(fields: [callAnalysisId], references: [id], onDelete: Cascade)
+
+  // Contact info (derived from call analysis)
+  contactName     String   // Name of the prospect
+  contactEmail    String?  // Email if available
+
+  // Sequence timing
+  sequenceStartDate DateTime  // When the call was marked as "warm_follow_up"
+  cooldownEndDate   DateTime  // 3 months from start - when follow-ups begin
+
+  // Current state
+  status          String   @default("cooling") // "cooling", "active", "completed", "won"
+  currentCycle    Int      @default(1)  // Which 3-month cycle we're on
+
+  // Email tracking within current cycle
+  email1Due       DateTime?  // Due date for first email
+  email1Sent      Boolean  @default(false)
+  email1Content   String?  @db.Text  // AI-generated email content
+
+  email2Due       DateTime?  // Due date for second email (email1 + 2 days)
+  email2Sent      Boolean  @default(false)
+
+  email3Due       DateTime?  // Due date for third email (email2 + 2 days)
+  email3Sent      Boolean  @default(false)
+
+  // Next cooldown (after all 3 emails sent)
+  nextCooldownEnd DateTime?  // When the next cycle starts
+
+  // Notes
+  notes           String?  @db.Text
+
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 // Change History Log for undo functionality
