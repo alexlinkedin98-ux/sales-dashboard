@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { ChangeHistory } from '@/components/ChangeHistory';
+import { TriageEntryForm } from '@/components/TriageEntryForm';
 
 interface TriageEntry {
   id: string;
@@ -62,14 +63,7 @@ export default function TriagePage() {
   const [viewMode, setViewMode] = useState<ViewMode>('weekly');
   const [selectedRep, setSelectedRep] = useState<string>('all');
   const [showEntryForm, setShowEntryForm] = useState(false);
-  const [editEntry, setEditEntry] = useState<{
-    id?: string;
-    salesRepId: string;
-    weekStartDate: string;
-    triageBooked: number;
-    triageTaken: number;
-    qualifiedForIntro: number;
-  } | null>(null);
+  const [editWeek, setEditWeek] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     fetchData();
@@ -103,30 +97,10 @@ export default function TriagePage() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editEntry) return;
-
-    try {
-      const url = editEntry.id
-        ? `/api/triage/${editEntry.id}`
-        : '/api/triage';
-      const method = editEntry.id ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editEntry),
-      });
-
-      if (response.ok) {
-        setShowEntryForm(false);
-        setEditEntry(null);
-        fetchData();
-      }
-    } catch (error) {
-      console.error('Error saving entry:', error);
-    }
+  const handleEntrySuccess = () => {
+    setShowEntryForm(false);
+    setEditWeek(undefined);
+    fetchData();
   };
 
   const handleDelete = async (id: string) => {
@@ -188,13 +162,7 @@ export default function TriagePage() {
               </a>
               <button
                 onClick={() => {
-                  setEditEntry({
-                    salesRepId: reps[0]?.id || '',
-                    weekStartDate: new Date().toISOString().split('T')[0],
-                    triageBooked: 0,
-                    triageTaken: 0,
-                    qualifiedForIntro: 0,
-                  });
+                  setEditWeek(undefined);
                   setShowEntryForm(true);
                 }}
                 disabled={reps.length === 0}
@@ -366,14 +334,7 @@ export default function TriagePage() {
                             <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
                               <button
                                 onClick={() => {
-                                  setEditEntry({
-                                    id: entry.id,
-                                    salesRepId: rep.repId,
-                                    weekStartDate: new Date(entry.weekDate).toISOString().split('T')[0],
-                                    triageBooked: entry.triageBooked,
-                                    triageTaken: entry.triageTaken,
-                                    qualifiedForIntro: entry.qualifiedForIntro,
-                                  });
+                                  setEditWeek(new Date(entry.weekDate).toISOString().split('T')[0]);
                                   setShowEntryForm(true);
                                 }}
                                 className="text-blue-600 hover:text-blue-800 mr-2"
@@ -460,89 +421,16 @@ export default function TriagePage() {
       </main>
 
       {/* Entry Form Modal */}
-      {showEntryForm && editEntry && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              {editEntry.id ? 'Edit Triage Entry' : 'Add Triage Entry'}
-            </h3>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Sales Rep</label>
-                <select
-                  value={editEntry.salesRepId}
-                  onChange={(e) => setEditEntry({ ...editEntry, salesRepId: e.target.value })}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-gray-900"
-                  disabled={!!editEntry.id}
-                >
-                  {reps.map((rep) => (
-                    <option key={rep.id} value={rep.id}>{rep.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Week Start Date</label>
-                <input
-                  type="date"
-                  value={editEntry.weekStartDate}
-                  onChange={(e) => setEditEntry({ ...editEntry, weekStartDate: e.target.value })}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-gray-900"
-                  disabled={!!editEntry.id}
-                />
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Booked</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={editEntry.triageBooked}
-                    onChange={(e) => setEditEntry({ ...editEntry, triageBooked: parseInt(e.target.value) || 0 })}
-                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-gray-900"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Taken</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={editEntry.triageTaken}
-                    onChange={(e) => setEditEntry({ ...editEntry, triageTaken: parseInt(e.target.value) || 0 })}
-                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-gray-900"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Qualified</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={editEntry.qualifiedForIntro}
-                    onChange={(e) => setEditEntry({ ...editEntry, qualifiedForIntro: parseInt(e.target.value) || 0 })}
-                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-gray-900"
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowEntryForm(false);
-                    setEditEntry(null);
-                  }}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
-                >
-                  {editEntry.id ? 'Update' : 'Add'} Entry
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+      {showEntryForm && (
+        <TriageEntryForm
+          reps={reps}
+          onSuccess={handleEntrySuccess}
+          onCancel={() => {
+            setShowEntryForm(false);
+            setEditWeek(undefined);
+          }}
+          editWeek={editWeek}
+        />
       )}
 
       {/* Footer */}
