@@ -207,6 +207,12 @@ export default function Dashboard() {
             <div className="flex gap-2 flex-wrap items-center">
               <Navigation currentPage="sales" />
               <div className="h-6 w-px bg-gray-300 mx-1" />
+              <a
+                href="/triage"
+                className="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+              >
+                Triage
+              </a>
               <button
                 onClick={() => setShowRepManager(true)}
                 className="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"

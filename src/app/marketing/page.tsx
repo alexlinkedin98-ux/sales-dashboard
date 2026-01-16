@@ -584,12 +584,12 @@ export default function MarketingDashboard() {
                 Track lead generation across marketing channels
               </p>
             </div>
-            <div className="flex gap-3 items-center">
+            <div className="flex gap-2 items-center">
               <Navigation currentPage="marketing" />
               <div className="w-px h-6 bg-gray-300" />
               <a
                 href="/triage/marketing"
-                className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 transition-colors"
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
               >
                 Marketing Triage
               </a>
