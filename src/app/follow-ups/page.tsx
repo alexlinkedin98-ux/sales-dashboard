@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { format, formatDistanceToNow, isPast, isToday } from 'date-fns';
 import { Navigation } from '@/components/Navigation';
+import { ChangeHistory } from '@/components/ChangeHistory';
 
 interface FollowUpSequence {
   id: string;
@@ -171,6 +172,28 @@ export default function WarmFollowUpsPage() {
     }
   };
 
+  const resetSequence = async (sequenceId: string, contactName: string) => {
+    if (!confirm(`Reset "${contactName}" back to the beginning? This will make it active and start from Step 1.`)) return;
+
+    setUpdatingSequence(sequenceId);
+    try {
+      const response = await fetch(`/api/follow-ups/${sequenceId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resetSequence: true }),
+      });
+      if (response.ok) {
+        fetchSequences();
+        setExpandedSequence(sequenceId);
+        setExpandedStep(null);
+      }
+    } catch (error) {
+      console.error('Error resetting sequence:', error);
+    } finally {
+      setUpdatingSequence(null);
+    }
+  };
+
   const updateContactInfo = async (sequenceId: string) => {
     setUpdatingSequence(sequenceId);
     try {
@@ -333,6 +356,8 @@ export default function WarmFollowUpsPage() {
             </div>
             <div className="flex gap-2 items-center">
               <Navigation currentPage="follow-ups" />
+              <div className="w-px h-6 bg-gray-300 mx-1" />
+              <ChangeHistory />
             </div>
           </div>
         </div>
@@ -537,6 +562,16 @@ export default function WarmFollowUpsPage() {
                             className="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 disabled:opacity-50"
                           >
                             Won
+                          </button>
+                        )}
+                        {(seq.status === 'cooling' || (seq.status === 'active' && getCurrentStep(seq) > 1)) && (
+                          <button
+                            onClick={() => resetSequence(seq.id, seq.contactName)}
+                            disabled={updatingSequence === seq.id}
+                            className="px-3 py-1.5 bg-amber-500 text-white text-sm rounded-lg hover:bg-amber-600 disabled:opacity-50"
+                            title="Reset to beginning"
+                          >
+                            Reset
                           </button>
                         )}
                         <button

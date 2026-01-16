@@ -141,6 +141,31 @@ export async function PATCH(
       updateData.step5Done = false;
     }
 
+    // Handle RESET - move sequence back to beginning (for testing or restarting)
+    if (body.resetSequence) {
+      const now = new Date();
+      updateData.status = 'active';
+      updateData.step1Done = false;
+      updateData.step2Done = false;
+      updateData.step3Done = false;
+      updateData.step4Done = false;
+      updateData.step5Done = false;
+      updateData.step1Due = now;
+      updateData.step2Due = null;
+      updateData.step3Due = null;
+      updateData.step4Due = null;
+      updateData.step5Due = null;
+      // Keep the content but reset everything else
+      // Reset legacy fields too
+      updateData.email1Sent = false;
+      updateData.email2Sent = false;
+      updateData.email3Sent = false;
+      updateData.email1Due = now;
+      updateData.email2Due = null;
+      updateData.email3Due = null;
+      updateData.cooldownEndDate = now; // Set cooldown to now so it's active
+    }
+
     // Legacy support: Handle old email markers (map to new steps)
     if (body.markEmail1Sent && !existing.email1Sent) {
       updateData.email1Sent = true;
