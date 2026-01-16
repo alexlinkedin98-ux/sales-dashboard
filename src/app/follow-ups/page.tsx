@@ -1,5 +1,6 @@
 'use client';
 
+// Follow-ups page with Reset functionality and Change History
 import { useState, useEffect } from 'react';
 import { format, formatDistanceToNow, isPast, isToday } from 'date-fns';
 import { Navigation } from '@/components/Navigation';
