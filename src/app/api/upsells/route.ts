@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { logChange } from '@/lib/changeLog';
 
 // GET all upsell entries
 export async function GET() {
@@ -54,6 +55,17 @@ export async function POST(request: Request) {
       year: 'numeric',
     });
 
+    // Check if entry exists (for logging purposes)
+    const existingEntry = await prisma.upsellEntry.findUnique({
+      where: {
+        salesRepId_weekStartDate: {
+          salesRepId,
+          weekStartDate: new Date(weekStartDate),
+        },
+      },
+      include: { salesRep: true },
+    });
+
     // Create or update (upsert) the entry
     const entry = await prisma.upsellEntry.upsert({
       where: {
@@ -82,6 +94,19 @@ export async function POST(request: Request) {
       include: {
         salesRep: true,
       },
+    });
+
+    // Log the change
+    await logChange({
+      entityType: 'UpsellEntry',
+      entityId: entry.id,
+      action: existingEntry ? 'update' : 'create',
+      previousData: existingEntry,
+      newData: entry,
+      description: existingEntry
+        ? `Updated upsell entry for ${entry.salesRep.name} - ${entry.weekLabel}`
+        : `Added upsell entry for ${entry.salesRep.name} - ${entry.weekLabel}`,
+      relatedName: entry.salesRep.name,
     });
 
     return NextResponse.json(entry, { status: 201 });

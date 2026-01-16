@@ -9,6 +9,7 @@ import {
   MarketingMonthlyTrendChart,
   MarketingCostMetricChart,
 } from '@/components/marketing/MarketingCharts';
+import { ChangeHistory } from '@/components/ChangeHistory';
 
 type ViewMode = 'weekly' | 'monthly' | 'quarterly' | 'annual' | 'comparison';
 
@@ -606,6 +607,7 @@ export default function MarketingDashboard() {
               >
                 Add Entry
               </button>
+              <ChangeHistory entityType="MarketingEntry" onUndo={fetchData} />
             </div>
           </div>
         </div>

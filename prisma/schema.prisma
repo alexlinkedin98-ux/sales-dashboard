@@ -243,3 +243,30 @@ model WeeklyCallStats {
 
   @@unique([salesRepId, weekStartDate])
 }
+
+// Change History Log for undo functionality
+model ChangeLog {
+  id            String   @id @default(cuid())
+
+  // What was changed
+  entityType    String   // "WeeklyEntry", "TriageEntry", "UpsellEntry", "MarketingEntry", "SalesRep", "MarketingChannel"
+  entityId      String   // ID of the changed record
+  action        String   // "create", "update", "delete"
+
+  // Store the data for undo
+  previousData  String?  @db.Text // JSON of previous state (for update/delete)
+  newData       String?  @db.Text // JSON of new state (for create/update)
+
+  // Human-readable description
+  description   String   // e.g., "Deleted week Jan 6 for John Smith"
+
+  // Optional reference info
+  relatedName   String?  // e.g., rep name or channel name for display
+
+  // Can this change be undone?
+  canUndo       Boolean  @default(true)
+  undone        Boolean  @default(false)
+
+  // Timestamps
+  createdAt     DateTime @default(now())
+}

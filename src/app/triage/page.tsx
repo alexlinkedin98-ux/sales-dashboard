@@ -2,6 +2,7 @@
 // Triage Dashboard - Tracks triage calls per sales rep per week
 
 import { useState, useEffect } from 'react';
+import { ChangeHistory } from '@/components/ChangeHistory';
 
 interface TriageEntry {
   id: string;
@@ -204,6 +205,7 @@ export default function TriagePage() {
                 </svg>
                 Add Entry
               </button>
+              <ChangeHistory entityType="TriageEntry" onUndo={fetchData} />
             </div>
           </div>
         </div>

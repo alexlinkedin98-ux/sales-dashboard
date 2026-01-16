@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { logChange } from '@/lib/changeLog';
 
 function getWeekLabel(date: Date): string {
   return date.toLocaleDateString('en-US', {
@@ -37,12 +38,32 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    // Get entries before deleting for the change log
+    const entries = await prisma.marketingEntry.findMany({
+      where: {
+        weekStartDate: new Date(weekDate),
+      },
+      include: { channel: true },
+    });
+
     // Delete all entries for this week
     const deleted = await prisma.marketingEntry.deleteMany({
       where: {
         weekStartDate: new Date(weekDate),
       },
     });
+
+    // Log each deletion
+    for (const entry of entries) {
+      await logChange({
+        entityType: 'MarketingEntry',
+        entityId: entry.id,
+        action: 'delete',
+        previousData: entry,
+        description: `Deleted marketing entry for ${entry.channel.name} - ${entry.weekLabel}`,
+        relatedName: entry.channel.name,
+      });
+    }
 
     return NextResponse.json({ success: true, count: deleted.count });
   } catch (error) {
@@ -77,6 +98,16 @@ export async function POST(request: NextRequest) {
         leadsGenerated: leadsGenerated || 0,
       },
       include: { channel: true },
+    });
+
+    // Log the change
+    await logChange({
+      entityType: 'MarketingEntry',
+      entityId: entry.id,
+      action: 'create',
+      newData: entry,
+      description: `Added marketing entry for ${entry.channel.name} - ${entry.weekLabel}`,
+      relatedName: entry.channel.name,
     });
 
     return NextResponse.json(entry, { status: 201 });

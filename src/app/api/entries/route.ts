@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { logChange } from '@/lib/changeLog';
 
 // GET all entries (with optional filtering by rep)
 export async function GET(request: Request) {
@@ -60,6 +61,16 @@ export async function POST(request: Request) {
         mrr: mrr || 0,
       },
       include: { salesRep: true },
+    });
+
+    // Log the change
+    await logChange({
+      entityType: 'WeeklyEntry',
+      entityId: entry.id,
+      action: 'create',
+      newData: entry,
+      description: `Added sales entry for ${entry.salesRep.name} - ${entry.weekLabel}`,
+      relatedName: entry.salesRep.name,
     });
 
     return NextResponse.json(entry, { status: 201 });

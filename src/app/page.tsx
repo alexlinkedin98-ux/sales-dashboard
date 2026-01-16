@@ -11,6 +11,7 @@ import {
 } from '@/components/Charts';
 import { EntryForm } from '@/components/EntryForm';
 import { RepManager } from '@/components/RepManager';
+import { ChangeHistory } from '@/components/ChangeHistory';
 
 type ViewMode = 'weekly' | 'monthly' | 'quarterly' | 'annual' | 'comparison';
 
@@ -258,6 +259,7 @@ export default function Dashboard() {
                 </svg>
                 Add Entry
               </button>
+              <ChangeHistory entityType="WeeklyEntry" onUndo={fetchData} />
             </div>
           </div>
         </div>

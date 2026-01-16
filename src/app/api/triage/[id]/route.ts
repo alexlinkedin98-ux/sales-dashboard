@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { logChange } from '@/lib/changeLog';
 
 // GET single triage entry
 export async function GET(
@@ -46,6 +47,16 @@ export async function PUT(
       qualifiedForIntro,
     } = body;
 
+    // Get the entry before updating for the change log
+    const previousEntry = await prisma.triageEntry.findUnique({
+      where: { id },
+      include: { salesRep: true },
+    });
+
+    if (!previousEntry) {
+      return NextResponse.json({ error: 'Entry not found' }, { status: 404 });
+    }
+
     const entry = await prisma.triageEntry.update({
       where: { id },
       data: {
@@ -56,6 +67,17 @@ export async function PUT(
       include: {
         salesRep: true,
       },
+    });
+
+    // Log the change
+    await logChange({
+      entityType: 'TriageEntry',
+      entityId: id,
+      action: 'update',
+      previousData: previousEntry,
+      newData: entry,
+      description: `Updated triage entry for ${entry.salesRep.name} - ${entry.weekLabel}`,
+      relatedName: entry.salesRep.name,
     });
 
     return NextResponse.json(entry);
@@ -75,8 +97,29 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+
+    // Get the entry before deleting for the change log
+    const entry = await prisma.triageEntry.findUnique({
+      where: { id },
+      include: { salesRep: true },
+    });
+
+    if (!entry) {
+      return NextResponse.json({ error: 'Entry not found' }, { status: 404 });
+    }
+
     await prisma.triageEntry.delete({
       where: { id },
+    });
+
+    // Log the change
+    await logChange({
+      entityType: 'TriageEntry',
+      entityId: id,
+      action: 'delete',
+      previousData: entry,
+      description: `Deleted triage entry for ${entry.salesRep.name} - ${entry.weekLabel}`,
+      relatedName: entry.salesRep.name,
     });
 
     return NextResponse.json({ success: true });

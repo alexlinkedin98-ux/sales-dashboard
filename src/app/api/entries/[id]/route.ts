@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { logChange } from '@/lib/changeLog';
 
 // DELETE an entry
 export async function DELETE(
@@ -9,8 +10,28 @@ export async function DELETE(
   try {
     const { id } = await params;
 
+    // Get the entry before deleting for the change log
+    const entry = await prisma.weeklyEntry.findUnique({
+      where: { id },
+      include: { salesRep: true },
+    });
+
+    if (!entry) {
+      return NextResponse.json({ error: 'Entry not found' }, { status: 404 });
+    }
+
     await prisma.weeklyEntry.delete({
       where: { id },
+    });
+
+    // Log the change
+    await logChange({
+      entityType: 'WeeklyEntry',
+      entityId: id,
+      action: 'delete',
+      previousData: entry,
+      description: `Deleted sales entry for ${entry.salesRep.name} - ${entry.weekLabel}`,
+      relatedName: entry.salesRep.name,
     });
 
     return NextResponse.json({ success: true });
@@ -37,6 +58,16 @@ export async function PUT(
       mrr,
     } = body;
 
+    // Get the entry before updating for the change log
+    const previousEntry = await prisma.weeklyEntry.findUnique({
+      where: { id },
+      include: { salesRep: true },
+    });
+
+    if (!previousEntry) {
+      return NextResponse.json({ error: 'Entry not found' }, { status: 404 });
+    }
+
     const entry = await prisma.weeklyEntry.update({
       where: { id },
       data: {
@@ -48,6 +79,17 @@ export async function PUT(
         mrr: mrr ?? undefined,
       },
       include: { salesRep: true },
+    });
+
+    // Log the change
+    await logChange({
+      entityType: 'WeeklyEntry',
+      entityId: id,
+      action: 'update',
+      previousData: previousEntry,
+      newData: entry,
+      description: `Updated sales entry for ${entry.salesRep.name} - ${entry.weekLabel}`,
+      relatedName: entry.salesRep.name,
     });
 
     return NextResponse.json(entry);
