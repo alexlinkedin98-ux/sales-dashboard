@@ -319,18 +319,44 @@ model FollowUpSequence {
   status          String   @default("cooling") // "cooling", "active", "completed", "won"
   currentCycle    Int      @default(1)  // Which 3-month cycle we're on
 
-  // Email tracking within current cycle
-  email1Due       DateTime?  // Due date for first email
-  email1Sent      Boolean  @default(false)
-  email1Content   String?  @db.Text  // AI-generated email content
+  // Contact phone for WhatsApp/Text/Call
+  contactPhone    String?  // Phone number if available
 
-  email2Due       DateTime?  // Due date for second email (email1 + 2 days)
+  // Multi-channel sequence tracking (5 steps):
+  // Step 1: Email (AI-generated from transcript)
+  step1Due        DateTime?  // Due date for first email
+  step1Done       Boolean  @default(false)
+  step1Content    String?  @db.Text  // AI-generated email content
+
+  // Step 2: WhatsApp/Text message (Day +1)
+  step2Due        DateTime?
+  step2Done       Boolean  @default(false)
+
+  // Step 3: Email 2 (Day +3)
+  step3Due        DateTime?
+  step3Done       Boolean  @default(false)
+
+  // Step 4: Phone call (Day +5)
+  step4Due        DateTime?
+  step4Done       Boolean  @default(false)
+  step4Notes      String?  @db.Text  // Notes from the call
+
+  // Step 5: Email 3 (Day +7)
+  step5Due        DateTime?
+  step5Done       Boolean  @default(false)
+
+  // Legacy fields for backwards compatibility (will migrate data)
+  email1Due       DateTime?
+  email1Sent      Boolean  @default(false)
+  email1Content   String?  @db.Text
+
+  email2Due       DateTime?
   email2Sent      Boolean  @default(false)
 
-  email3Due       DateTime?  // Due date for third email (email2 + 2 days)
+  email3Due       DateTime?
   email3Sent      Boolean  @default(false)
 
-  // Next cooldown (after all 3 emails sent)
+  // Next cooldown (after all 5 steps complete)
   nextCooldownEnd DateTime?  // When the next cycle starts
 
   // Notes

@@ -72,11 +72,12 @@ Write ONLY the email body (no subject line, no signature). Start with "Hi ${sequ
       .map((block) => block.text)
       .join('\n');
 
-    // Save the generated email to the sequence
+    // Save the generated email to the sequence (both new and legacy fields)
     const updatedSequence = await prisma.followUpSequence.update({
       where: { id },
       data: {
-        email1Content: emailContent,
+        step1Content: emailContent,
+        email1Content: emailContent, // Legacy field
       },
       include: {
         callAnalysis: {

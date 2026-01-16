@@ -30,7 +30,7 @@ export async function GET(
   }
 }
 
-// PATCH update follow-up sequence (mark emails as sent, update notes, etc.)
+// PATCH update follow-up sequence (mark steps as done, update notes, etc.)
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -49,48 +49,119 @@ export async function PATCH(
 
     const updateData: Record<string, unknown> = {};
 
-    // Handle marking emails as sent
-    if (body.markEmail1Sent && !existing.email1Sent) {
-      updateData.email1Sent = true;
-      // Set email2 due date (2 days from now)
-      const email2Due = new Date();
-      email2Due.setDate(email2Due.getDate() + 2);
-      updateData.email2Due = email2Due;
+    // Handle marking steps as done (new 5-step sequence)
+    // Step 1: Email 1 (AI-generated)
+    if (body.markStep1Done && !existing.step1Done) {
+      updateData.step1Done = true;
+      // Set step 2 due date (1 day from now) - WhatsApp/Text
+      const step2Due = new Date();
+      step2Due.setDate(step2Due.getDate() + 1);
+      updateData.step2Due = step2Due;
     }
 
-    if (body.markEmail2Sent && !existing.email2Sent) {
-      updateData.email2Sent = true;
-      // Set email3 due date (2 days from now)
-      const email3Due = new Date();
-      email3Due.setDate(email3Due.getDate() + 2);
-      updateData.email3Due = email3Due;
+    // Step 2: WhatsApp/Text
+    if (body.markStep2Done && !existing.step2Done) {
+      updateData.step2Done = true;
+      // Set step 3 due date (2 days from now) - Email 2
+      const step3Due = new Date();
+      step3Due.setDate(step3Due.getDate() + 2);
+      updateData.step3Due = step3Due;
     }
 
-    if (body.markEmail3Sent && !existing.email3Sent) {
-      updateData.email3Sent = true;
-      // Set up next cooldown cycle
+    // Step 3: Email 2
+    if (body.markStep3Done && !existing.step3Done) {
+      updateData.step3Done = true;
+      // Set step 4 due date (2 days from now) - Phone call
+      const step4Due = new Date();
+      step4Due.setDate(step4Due.getDate() + 2);
+      updateData.step4Due = step4Due;
+    }
+
+    // Step 4: Phone call
+    if (body.markStep4Done && !existing.step4Done) {
+      updateData.step4Done = true;
+      if (body.step4Notes) {
+        updateData.step4Notes = body.step4Notes;
+      }
+      // Set step 5 due date (2 days from now) - Email 3
+      const step5Due = new Date();
+      step5Due.setDate(step5Due.getDate() + 2);
+      updateData.step5Due = step5Due;
+    }
+
+    // Step 5: Email 3 - completes the cycle
+    if (body.markStep5Done && !existing.step5Done) {
+      updateData.step5Done = true;
+      // Set up next cooldown cycle (3 months)
       const nextCooldownEnd = new Date();
       nextCooldownEnd.setMonth(nextCooldownEnd.getMonth() + 3);
       updateData.nextCooldownEnd = nextCooldownEnd;
       updateData.status = 'cooling';
       updateData.cooldownEndDate = nextCooldownEnd;
       updateData.currentCycle = existing.currentCycle + 1;
-      // Reset email tracking for next cycle
-      updateData.email1Sent = false;
-      updateData.email2Sent = false;
-      updateData.email3Sent = false;
-      updateData.email1Content = null;
-      updateData.email1Due = nextCooldownEnd;
-      updateData.email2Due = null;
-      updateData.email3Due = null;
+      // Reset step tracking for next cycle
+      updateData.step1Done = false;
+      updateData.step2Done = false;
+      updateData.step3Done = false;
+      updateData.step4Done = false;
+      updateData.step5Done = false;
+      updateData.step1Content = null;
+      updateData.step4Notes = null;
+      updateData.step1Due = nextCooldownEnd;
+      updateData.step2Due = null;
+      updateData.step3Due = null;
+      updateData.step4Due = null;
+      updateData.step5Due = null;
     }
 
-    // Handle other updates
-    if (body.email1Content !== undefined) {
-      updateData.email1Content = body.email1Content;
+    // Handle UNDO - marking steps as NOT done (go back)
+    if (body.undoStep1) {
+      updateData.step1Done = false;
+      // Clear subsequent steps' due dates since we're going back
+      updateData.step2Due = null;
+    }
+
+    if (body.undoStep2) {
+      updateData.step2Done = false;
+      updateData.step3Due = null;
+    }
+
+    if (body.undoStep3) {
+      updateData.step3Done = false;
+      updateData.step4Due = null;
+    }
+
+    if (body.undoStep4) {
+      updateData.step4Done = false;
+      updateData.step5Due = null;
+      // Optionally keep the call notes for reference
+    }
+
+    if (body.undoStep5) {
+      updateData.step5Done = false;
+    }
+
+    // Legacy support: Handle old email markers (map to new steps)
+    if (body.markEmail1Sent && !existing.email1Sent) {
+      updateData.email1Sent = true;
+      updateData.step1Done = true;
+      const step2Due = new Date();
+      step2Due.setDate(step2Due.getDate() + 1);
+      updateData.step2Due = step2Due;
+    }
+
+    // Handle direct field updates
+    if (body.step1Content !== undefined) {
+      updateData.step1Content = body.step1Content;
+    }
+    if (body.step4Notes !== undefined) {
+      updateData.step4Notes = body.step4Notes;
     }
     if (body.contactEmail !== undefined) {
       updateData.contactEmail = body.contactEmail;
+    }
+    if (body.contactPhone !== undefined) {
+      updateData.contactPhone = body.contactPhone;
     }
     if (body.contactName !== undefined) {
       updateData.contactName = body.contactName;
@@ -107,6 +178,12 @@ export async function PATCH(
           data: { outcome: 'won' },
         });
       }
+    }
+
+    // Legacy field support
+    if (body.email1Content !== undefined) {
+      updateData.email1Content = body.email1Content;
+      updateData.step1Content = body.email1Content;
     }
 
     const sequence = await prisma.followUpSequence.update({

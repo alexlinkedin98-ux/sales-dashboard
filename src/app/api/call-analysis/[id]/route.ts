@@ -121,7 +121,8 @@ export async function PATCH(
           cooldownEndDate,
           status: 'cooling',
           currentCycle: 1,
-          email1Due: cooldownEndDate, // First email due when cooldown ends
+          step1Due: cooldownEndDate, // First email due when cooldown ends
+          email1Due: cooldownEndDate, // Legacy field
         },
       });
     }
