@@ -670,3 +670,62 @@ model WeeklyChecklistHistory {
   // Unique constraint - one history per rep per week
   @@unique([salesRepId, weekStartDate])
 }
+
+// =============================================
+// FINANCE TRACKER MODELS (Password Protected)
+// =============================================
+
+// Finance User - password-protected accounts
+model FinanceUser {
+  id              String   @id @default(cuid())
+
+  // User identification
+  name            String   @unique  // e.g., "Alex", "Dominic"
+  passwordHash    String   // Hashed password for security
+
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  financeEntries  FinanceEntry[]
+}
+
+// Monthly Finance Entry - tracks income and expenses
+model FinanceEntry {
+  id              String   @id @default(cuid())
+
+  // Link to finance user
+  userId          String
+  user            FinanceUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Month information
+  monthStartDate  DateTime  // First day of the month
+  monthLabel      String    // e.g., "December 2025"
+
+  // Income/Sales items (can have multiple per month - stored as JSON array)
+  salesItems      String?   @db.Text  // JSON: [{name: "linsen guy", amount: 500}, ...]
+  salesTotal      Float     @default(0)
+
+  // Expenses
+  reviewsExpense      Float   @default(0)
+  paidAuditsExpense   Float   @default(0)
+  lpExpense           Float   @default(0)  // Landing Page expenses
+  bookingsExpense     Float   @default(0)
+  tenPercentExpense   Float   @default(0)  // 10% expense (commission, etc.)
+  otherExpenses       String? @db.Text     // JSON for additional expenses
+  expensesTotal       Float   @default(0)
+
+  // Calculated totals
+  netTotal            Float   @default(0)  // salesTotal - expensesTotal
+
+  // Notes
+  notes               String? @db.Text
+
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Unique constraint - one entry per user per month
+  @@unique([userId, monthStartDate])
+}

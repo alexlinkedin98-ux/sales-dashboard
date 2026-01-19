@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 
 interface NavigationProps {
-  currentPage: 'sales' | 'marketing' | 'triage' | 'upsells' | 'reviews' | 'call-analysis' | 'marketing-triage' | 'follow-ups' | 'trainer' | 'sales-checklist';
+  currentPage: 'sales' | 'marketing' | 'triage' | 'upsells' | 'reviews' | 'call-analysis' | 'marketing-triage' | 'follow-ups' | 'trainer' | 'sales-checklist' | 'finance';
 }
 
 // Triage is now shown per-dashboard near action buttons, not in main nav
@@ -23,7 +23,7 @@ export function Navigation({ currentPage }: NavigationProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const isOtherPage = ['upsells', 'reviews', 'call-analysis', 'follow-ups', 'sales-checklist'].includes(currentPage);
+  const isOtherPage = ['upsells', 'reviews', 'call-analysis', 'follow-ups', 'sales-checklist', 'finance'].includes(currentPage);
 
   return (
     <div className="flex gap-2 flex-wrap">
@@ -149,6 +149,19 @@ export function Navigation({ currentPage }: NavigationProps) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
               </svg>
               Sales Checklist
+            </a>
+            <a
+              href="/finance"
+              className={`flex items-center px-4 py-2 text-sm transition-colors ${
+                currentPage === 'finance'
+                  ? 'bg-yellow-50 text-yellow-700'
+                  : 'text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <svg className="w-4 h-4 mr-2 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+              Finance Tracker
             </a>
             {/* Context-aware Triage links */}
             {currentPage === 'sales' && (
