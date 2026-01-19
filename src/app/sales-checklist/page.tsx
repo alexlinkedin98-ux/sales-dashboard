@@ -447,7 +447,7 @@ export default function SalesChecklistPage() {
                     {categoryItems.map((item) => (
                       <div
                         key={item.id}
-                        className={`px-6 py-3 flex items-start gap-3 hover:bg-gray-50 transition-colors ${
+                        className={`group px-6 py-3 flex items-start gap-3 hover:bg-gray-50 transition-colors ${
                           isCompleted(item.id) ? 'bg-green-50' : ''
                         }`}
                       >
@@ -503,7 +503,7 @@ export default function SalesChecklistPage() {
 
                         {/* Actions */}
                         {editingItem !== item.id && (
-                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 hover:opacity-100">
+                          <div className="flex gap-1 opacity-50 group-hover:opacity-100 transition-opacity">
                             <button
                               onClick={() => setEditingItem(item.id)}
                               className="p-1 text-gray-400 hover:text-gray-600"
