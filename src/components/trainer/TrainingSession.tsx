@@ -379,6 +379,17 @@ export function TrainingSession({ traineeId, config, onComplete, onPause }: Trai
 
       {/* Question/Feedback Content */}
       <div className="space-y-6">
+        {/* Loading State for New Question */}
+        {phase === 'loading' && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mx-auto mb-4" />
+              <div className="text-lg font-medium text-gray-900 mb-2">Generating Question...</div>
+              <div className="text-sm text-gray-500">Creating a realistic Google Ads prospect scenario</div>
+            </div>
+          </div>
+        )}
+
         {/* Scenario Card */}
         {currentScenario && (phase === 'question' || phase === 'feedback' || phase === 'grading') && (
           <QuestionCard
