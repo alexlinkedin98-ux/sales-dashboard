@@ -23,6 +23,10 @@ model SalesRep {
   upsellEntries    UpsellEntry[]
   triageEntries    TriageEntry[]
   reviewEntries    ReviewEntry[]
+  // SPIN Trainer relations
+  trainingSessions  TrainingSession[]
+  spacedRepetition  SpacedRepetition[]
+  trainerStats      TrainerStats?
 }
 
 // Weekly Triage Data Entries (triage calls tracking)
@@ -392,4 +396,190 @@ model ChangeLog {
 
   // Timestamps
   createdAt     DateTime @default(now())
+}
+
+// =============================================
+// SPIN QUESTION TRAINER MODELS
+// =============================================
+
+// Training Session - tracks individual training sessions
+model TrainingSession {
+  id              String   @id @default(cuid())
+
+  // Link to trainee (existing SalesRep)
+  traineeId       String
+  trainee         SalesRep @relation(fields: [traineeId], references: [id], onDelete: Cascade)
+
+  // Session configuration
+  mode            String   // "learn", "practice", "live_sim"
+  level           Int      // 1-5
+  timerDuration   Int      // seconds (900 = 15 min default, 0 for no timer)
+  vertical        String   // "ecommerce", "leadgen", "local_services"
+
+  // Session metrics
+  startedAt       DateTime @default(now())
+  completedAt     DateTime?
+  questionsAnswered Int    @default(0)
+  correctAnswers   Int     @default(0)
+
+  // Grading
+  avgTypeAccuracy  Float?  // 0-100
+  avgQualityScore  Float?  // 0-100
+  avgNaturalness   Float?  // 0-100
+  overallGrade     String? // "S", "A", "B", "C", "F"
+  xpEarned         Int     @default(0)
+
+  // Session state for resume capability
+  scenarioState    String? @db.Text // JSON of current scenario context
+
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  responses       TrainingResponse[]
+}
+
+// Individual question/response within a session
+model TrainingResponse {
+  id              String   @id @default(cuid())
+
+  // Link to session
+  sessionId       String
+  session         TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  // Question context
+  questionNumber  Int
+  promptType      String   // "identify", "craft_single", "craft_chain", "scenario", "curveball"
+  promptContext   String   @db.Text // The scenario/context presented
+  expectedType    String?  // "S", "P", "I", "N" (for identification questions)
+
+  // Trainee response
+  traineeResponse String   @db.Text
+  responseTimeMs  Int      // How long they took to respond
+
+  // AI grading
+  identifiedType  String?  // What type the AI identified their question as
+  typeCorrect     Boolean?
+  qualityScore    Float?   // 0-100
+  naturalnessScore Float?  // 0-100
+  aiFeedback      String?  @db.Text
+
+  // Calculated grade for this response
+  grade           String?  // "S", "A", "B", "C", "F"
+  xpAwarded       Int      @default(0)
+
+  // Prospect response (for interactive modes)
+  prospectResponse String? @db.Text
+  informationRevealed String? @db.Text // What the prospect shared based on quality
+
+  // Timestamps
+  createdAt       DateTime @default(now())
+}
+
+// Spaced repetition tracking per question type per trainee
+model SpacedRepetition {
+  id              String   @id @default(cuid())
+
+  // Link to trainee
+  traineeId       String
+  trainee         SalesRep @relation(fields: [traineeId], references: [id], onDelete: Cascade)
+
+  // Question type being tracked
+  questionType    String   // "S", "P", "I", "N"
+  level           Int      // 1-5
+
+  // SM-2 Algorithm fields
+  easeFactor      Float    @default(2.5) // Multiplier for interval
+  intervalDays    Float    @default(1)   // Days until next review
+  repetitions     Int      @default(0)   // Successful repetitions in a row
+  lastReviewedAt  DateTime?
+  nextReviewAt    DateTime @default(now())
+
+  // Performance tracking
+  totalAttempts   Int      @default(0)
+  correctAttempts Int      @default(0)
+
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([traineeId, questionType, level])
+}
+
+// Lifetime stats per trainee
+model TrainerStats {
+  id                    String   @id @default(cuid())
+
+  // Link to trainee
+  traineeId             String   @unique
+  trainee               SalesRep @relation(fields: [traineeId], references: [id], onDelete: Cascade)
+
+  // XP and Level
+  totalXp               Int      @default(0)
+  currentLevel          Int      @default(1)
+
+  // Streak tracking
+  currentStreak         Int      @default(0)
+  longestStreak         Int      @default(0)
+  lastTrainingDate      DateTime?
+
+  // Session stats
+  totalSessions         Int      @default(0)
+  totalQuestionsAnswered Int     @default(0)
+  totalTimeSpentSeconds Int      @default(0)
+
+  // Accuracy by type
+  situationAccuracy     Float?
+  problemAccuracy       Float?
+  implicationAccuracy   Float?
+  needPayoffAccuracy    Float?
+
+  // Level unlocks (stores highest level achieved per mode)
+  highestLevelLearn     Int      @default(1)
+  highestLevelPractice  Int      @default(1)
+  highestLevelLiveSim   Int      @default(1)
+
+  // Grade distribution (JSON: {"S": 10, "A": 25, ...})
+  gradeDistribution     String?  @db.Text
+
+  // Weekly/Monthly aggregates
+  questionsThisWeek     Int      @default(0)
+  questionsThisMonth    Int      @default(0)
+  weekStartDate         DateTime?
+  monthStartDate        DateTime?
+
+  // Settings
+  pomodoroMinutes       Int      @default(15)  // Default session length
+
+  // Timestamps
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+// Question bank for pre-defined scenarios
+model TrainerQuestion {
+  id              String   @id @default(cuid())
+
+  // Question metadata
+  level           Int      // 1-5
+  vertical        String   // "ecommerce", "leadgen", "local_services"
+  questionType    String   // "S", "P", "I", "N"
+  promptType      String   // "identify", "craft_single", "craft_chain", "scenario", "curveball"
+
+  // Content
+  scenarioDescription String @db.Text
+  prospectPersona     String @db.Text // JSON with prospect details
+  correctAnswer       String? @db.Text // For identification questions
+  sampleGoodResponse  String? @db.Text
+  followUpContext     String? @db.Text // For chain questions
+  curveballType       String? // "deflection", "rambling", "objection"
+
+  // Metadata
+  difficulty          Int     @default(3) // 1-5
+  isActive            Boolean @default(true)
+
+  // Timestamps
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 }
