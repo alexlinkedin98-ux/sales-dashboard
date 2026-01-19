@@ -27,6 +27,10 @@ model SalesRep {
   trainingSessions  TrainingSession[]
   spacedRepetition  SpacedRepetition[]
   trainerStats      TrainerStats?
+  // Sales Checklist relations
+  checklistItems       ChecklistItem[]
+  checklistCompletions ChecklistCompletion[]
+  weeklyChecklistHistory WeeklyChecklistHistory[]
 }
 
 // Weekly Triage Data Entries (triage calls tracking)
@@ -582,4 +586,87 @@ model TrainerQuestion {
   // Timestamps
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
+}
+
+// =============================================
+// SALES CHECKLIST MODELS
+// =============================================
+
+// Checklist items (personalized per sales rep)
+model ChecklistItem {
+  id              String   @id @default(cuid())
+
+  // Link to sales rep (each rep has their own items)
+  salesRepId      String
+  salesRep        SalesRep @relation(fields: [salesRepId], references: [id], onDelete: Cascade)
+
+  // Item content
+  title           String   // e.g., "Tongue Twister Practice"
+  description     String?  // Optional description/notes
+  category        String?  // e.g., "Warm-up", "Learning", "Practice", "Community"
+
+  // Display order
+  sortOrder       Int      @default(0)
+
+  // Status
+  isActive        Boolean  @default(true)
+
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  completions     ChecklistCompletion[]
+}
+
+// Weekly completions for checklist items
+model ChecklistCompletion {
+  id              String   @id @default(cuid())
+
+  // Link to sales rep
+  salesRepId      String
+  salesRep        SalesRep @relation(fields: [salesRepId], references: [id], onDelete: Cascade)
+
+  // Link to checklist item
+  itemId          String
+  item            ChecklistItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  // Week information
+  weekStartDate   DateTime  // Monday of the week
+
+  // Completion status
+  completed       Boolean  @default(false)
+  completedAt     DateTime?
+
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Unique constraint - one completion per item per week
+  @@unique([salesRepId, itemId, weekStartDate])
+}
+
+// Weekly history/summary for tracking over time
+model WeeklyChecklistHistory {
+  id              String   @id @default(cuid())
+
+  // Link to sales rep
+  salesRepId      String
+  salesRep        SalesRep @relation(fields: [salesRepId], references: [id], onDelete: Cascade)
+
+  // Week information
+  weekStartDate   DateTime
+  weekLabel       String   // e.g., "Jan 13, 2026"
+
+  // Stats for this week
+  totalItems      Int      @default(0)
+  completedItems  Int      @default(0)
+  completionRate  Float    @default(0)  // 0-100 percentage
+
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Unique constraint - one history per rep per week
+  @@unique([salesRepId, weekStartDate])
 }
