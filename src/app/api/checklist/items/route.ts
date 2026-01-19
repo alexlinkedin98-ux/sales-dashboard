@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { startOfWeek } from 'date-fns';
 
 // GET /api/checklist/items - Get checklist items for a sales rep
 export async function GET(request: Request) {
@@ -14,19 +15,31 @@ export async function GET(request: Request) {
       );
     }
 
-    const items = await prisma.checklistItem.findMany({
-      where: {
-        salesRepId,
-        isActive: true,
-      },
-      orderBy: [
-        { category: 'asc' },
-        { sortOrder: 'asc' },
-        { createdAt: 'asc' },
-      ],
-    });
+    // Get week start (Monday)
+    const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
 
-    return NextResponse.json(items);
+    // Get items and completions in parallel
+    const [items, completions] = await Promise.all([
+      prisma.checklistItem.findMany({
+        where: {
+          salesRepId,
+          isActive: true,
+        },
+        orderBy: [
+          { category: 'asc' },
+          { sortOrder: 'asc' },
+          { createdAt: 'asc' },
+        ],
+      }),
+      prisma.checklistCompletion.findMany({
+        where: {
+          salesRepId,
+          weekStartDate: weekStart,
+        },
+      }),
+    ]);
+
+    return NextResponse.json({ items, completions });
   } catch (error) {
     console.error('Error fetching checklist items:', error);
     return NextResponse.json(
