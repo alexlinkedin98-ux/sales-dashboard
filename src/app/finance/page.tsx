@@ -591,7 +591,7 @@ export default function FinanceTrackerPage() {
                 <h4 className="font-semibold text-gray-900 mb-3">Expenses</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Reviews</label>
+                    <label className="block text-sm font-semibold text-gray-900 mb-1">Reviews</label>
                     <input
                       type="number"
                       value={expenses.reviews || ''}
@@ -605,7 +605,7 @@ export default function FinanceTrackerPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Paid Audits</label>
+                    <label className="block text-sm font-semibold text-gray-900 mb-1">Paid Audits</label>
                     <input
                       type="number"
                       value={expenses.paidAudits || ''}
@@ -619,7 +619,7 @@ export default function FinanceTrackerPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">LP (Landing Page)</label>
+                    <label className="block text-sm font-semibold text-gray-900 mb-1">LP (Landing Page)</label>
                     <input
                       type="number"
                       value={expenses.lp || ''}
@@ -630,7 +630,7 @@ export default function FinanceTrackerPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Bookings</label>
+                    <label className="block text-sm font-semibold text-gray-900 mb-1">Bookings</label>
                     <input
                       type="number"
                       value={expenses.bookings || ''}
@@ -644,7 +644,7 @@ export default function FinanceTrackerPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">10% (Commission)</label>
+                    <label className="block text-sm font-semibold text-gray-900 mb-1">10% (Commission)</label>
                     <input
                       type="number"
                       value={expenses.tenPercent || ''}
@@ -666,7 +666,7 @@ export default function FinanceTrackerPage() {
 
               {/* Notes */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <label className="block text-sm font-semibold text-gray-900 mb-1">Notes</label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
