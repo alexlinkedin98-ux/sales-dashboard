@@ -68,7 +68,7 @@ export default function SalesChecklistPage() {
 
   // Fetch sales reps
   useEffect(() => {
-    fetch('/api/sales-reps')
+    fetch('/api/reps')
       .then((res) => res.json())
       .then((data) => {
         setSalesReps(data);
