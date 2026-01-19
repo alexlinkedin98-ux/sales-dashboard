@@ -73,6 +73,7 @@ export async function POST(request: Request) {
       lpExpense,
       bookingsExpense,
       tenPercentExpense,
+      sixpensesExpense,
       otherExpenses,
       notes,
     } = body;
@@ -103,7 +104,8 @@ export async function POST(request: Request) {
       (paidAuditsExpense || 0) +
       (lpExpense || 0) +
       (bookingsExpense || 0) +
-      (tenPercentExpense || 0);
+      (tenPercentExpense || 0) +
+      (sixpensesExpense || 0);
 
     // Calculate net total
     const netTotal = salesTotal - expensesTotal;
@@ -124,6 +126,7 @@ export async function POST(request: Request) {
         lpExpense: lpExpense || 0,
         bookingsExpense: bookingsExpense || 0,
         tenPercentExpense: tenPercentExpense || 0,
+        sixpensesExpense: sixpensesExpense || 0,
         otherExpenses: otherExpenses ? JSON.stringify(otherExpenses) : null,
         expensesTotal,
         netTotal,
@@ -140,6 +143,7 @@ export async function POST(request: Request) {
         lpExpense: lpExpense || 0,
         bookingsExpense: bookingsExpense || 0,
         tenPercentExpense: tenPercentExpense || 0,
+        sixpensesExpense: sixpensesExpense || 0,
         otherExpenses: otherExpenses ? JSON.stringify(otherExpenses) : null,
         expensesTotal,
         netTotal,

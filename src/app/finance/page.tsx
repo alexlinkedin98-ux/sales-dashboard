@@ -39,6 +39,7 @@ interface FinanceEntry {
   lpExpense: number;
   bookingsExpense: number;
   tenPercentExpense: number;
+  sixpensesExpense: number;
   otherExpenses: string | null;
   expensesTotal: number;
   netTotal: number;
@@ -83,6 +84,7 @@ export default function FinanceTrackerPage() {
     lp: 0,
     bookings: 0,
     tenPercent: 0,
+    sixpenses: 0,
   });
   const [notes, setNotes] = useState('');
 
@@ -176,12 +178,13 @@ export default function FinanceTrackerPage() {
         lp: existingEntry.lpExpense,
         bookings: existingEntry.bookingsExpense,
         tenPercent: existingEntry.tenPercentExpense,
+        sixpenses: existingEntry.sixpensesExpense || 0,
       });
       setNotes(existingEntry.notes || '');
     } else {
       setEditingEntry(null);
       setSalesItems([]);
-      setExpenses({ reviews: 0, paidAudits: 0, lp: 0, bookings: 0, tenPercent: 0 });
+      setExpenses({ reviews: 0, paidAudits: 0, lp: 0, bookings: 0, tenPercent: 0, sixpenses: 0 });
       setNotes('');
     }
   };
@@ -218,6 +221,7 @@ export default function FinanceTrackerPage() {
           lpExpense: expenses.lp,
           bookingsExpense: expenses.bookings,
           tenPercentExpense: expenses.tenPercent,
+          sixpensesExpense: expenses.sixpenses,
           notes,
         }),
       });
@@ -234,7 +238,7 @@ export default function FinanceTrackerPage() {
   // Calculate totals for form preview
   const salesTotal = salesItems.reduce((sum, item) => sum + item.amount, 0);
   const expensesTotal =
-    expenses.reviews + expenses.paidAudits + expenses.lp + expenses.bookings + expenses.tenPercent;
+    expenses.reviews + expenses.paidAudits + expenses.lp + expenses.bookings + expenses.tenPercent + expenses.sixpenses;
   const netTotal = salesTotal - expensesTotal;
 
   // Chart data
@@ -652,6 +656,20 @@ export default function FinanceTrackerPage() {
                         setExpenses((prev) => ({
                           ...prev,
                           tenPercent: parseFloat(e.target.value) || 0,
+                        }))
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-1">Sixpenses</label>
+                    <input
+                      type="number"
+                      value={expenses.sixpenses || ''}
+                      onChange={(e) =>
+                        setExpenses((prev) => ({
+                          ...prev,
+                          sixpenses: parseFloat(e.target.value) || 0,
                         }))
                       }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"

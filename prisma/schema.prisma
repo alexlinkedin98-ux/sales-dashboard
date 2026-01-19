@@ -713,6 +713,7 @@ model FinanceEntry {
   lpExpense           Float   @default(0)  // Landing Page expenses
   bookingsExpense     Float   @default(0)
   tenPercentExpense   Float   @default(0)  // 10% expense (commission, etc.)
+  sixpensesExpense    Float   @default(0)  // Sixpenses
   otherExpenses       String? @db.Text     // JSON for additional expenses
   expensesTotal       Float   @default(0)
 
