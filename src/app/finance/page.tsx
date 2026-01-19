@@ -332,7 +332,7 @@ export default function FinanceTrackerPage() {
                   value={authName}
                   onChange={(e) => setAuthName(e.target.value)}
                   placeholder={authMode === 'register' ? 'Enter your name' : 'Select or enter name'}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 placeholder:text-gray-500"
                 />
               </div>
 
@@ -344,7 +344,7 @@ export default function FinanceTrackerPage() {
                   onChange={(e) => setAuthPassword(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleAuth()}
                   placeholder={authMode === 'register' ? 'Create a password' : 'Enter password'}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 placeholder:text-gray-500"
                 />
               </div>
 
@@ -562,7 +562,7 @@ export default function FinanceTrackerPage() {
                     placeholder="Client/Source name"
                     value={newSaleItem.name}
                     onChange={(e) => setNewSaleItem((prev) => ({ ...prev, name: e.target.value }))}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 placeholder:text-gray-500"
                   />
                   <input
                     type="number"
@@ -571,7 +571,7 @@ export default function FinanceTrackerPage() {
                     onChange={(e) =>
                       setNewSaleItem((prev) => ({ ...prev, amount: e.target.value }))
                     }
-                    className="w-28 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-28 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 placeholder:text-gray-500"
                   />
                   <button
                     onClick={addSalesItem}
@@ -672,7 +672,7 @@ export default function FinanceTrackerPage() {
                   onChange={(e) => setNotes(e.target.value)}
                   rows={2}
                   placeholder="Optional notes..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 placeholder:text-gray-500"
                 />
               </div>
 
