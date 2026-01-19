@@ -260,16 +260,16 @@ export default function SalesChecklistPage() {
     total: h.totalItems,
   }));
 
-  // Category colors
+  // Category colors - using darker text for better contrast
   const categoryColors: Record<string, string> = {
-    'Warm-up': 'bg-orange-100 text-orange-700 border-orange-200',
-    Learning: 'bg-blue-100 text-blue-700 border-blue-200',
-    Energy: 'bg-purple-100 text-purple-700 border-purple-200',
-    Content: 'bg-pink-100 text-pink-700 border-pink-200',
-    Community: 'bg-green-100 text-green-700 border-green-200',
-    Practice: 'bg-indigo-100 text-indigo-700 border-indigo-200',
-    Action: 'bg-red-100 text-red-700 border-red-200',
-    Uncategorized: 'bg-gray-100 text-gray-700 border-gray-200',
+    'Warm-up': 'bg-orange-100 text-orange-800 border-orange-200',
+    Learning: 'bg-blue-100 text-blue-800 border-blue-200',
+    Energy: 'bg-purple-100 text-purple-800 border-purple-200',
+    Content: 'bg-pink-100 text-pink-800 border-pink-200',
+    Community: 'bg-green-100 text-green-800 border-green-200',
+    Practice: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+    Action: 'bg-red-100 text-red-800 border-red-200',
+    Uncategorized: 'bg-gray-100 text-gray-800 border-gray-200',
   };
 
   if (loading && salesReps.length === 0) {
@@ -437,7 +437,7 @@ export default function SalesChecklistPage() {
                       className={`px-6 py-2 ${categoryColors[category]?.split(' ')[0] || 'bg-gray-100'}`}
                     >
                       <span
-                        className={`text-sm font-medium ${categoryColors[category]?.split(' ')[1] || 'text-gray-700'}`}
+                        className={`text-sm font-semibold ${categoryColors[category]?.split(' ')[1] || 'text-gray-800'}`}
                       >
                         {category}
                       </span>
