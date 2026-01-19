@@ -662,7 +662,7 @@ export default function FinanceTrackerPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-900 mb-1">Sixpenses</label>
+                    <label className="block text-sm font-semibold text-gray-900 mb-1">Expenses</label>
                     <input
                       type="number"
                       value={expenses.sixpenses || ''}
