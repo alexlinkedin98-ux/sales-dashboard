@@ -64,6 +64,7 @@ export default function FinanceTrackerPage() {
   const [authName, setAuthName] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authError, setAuthError] = useState('');
+  const [authLoading, setAuthLoading] = useState(true);
 
   // Data state
   const [entries, setEntries] = useState<FinanceEntry[]>([]);
@@ -87,6 +88,29 @@ export default function FinanceTrackerPage() {
     sixpenses: 0,
   });
   const [notes, setNotes] = useState('');
+
+  // Client commission state
+  const [clientCommission, setClientCommission] = useState<{
+    totalCommission: number;
+    clientCount: number;
+    breakdown: { clientName: string; commission: number }[];
+  } | null>(null);
+  const [loadingCommission, setLoadingCommission] = useState(false);
+
+  // Restore auth from localStorage on mount
+  useEffect(() => {
+    const savedUser = localStorage.getItem('financeUser');
+    if (savedUser) {
+      try {
+        const user = JSON.parse(savedUser);
+        setCurrentUser(user);
+        setIsAuthenticated(true);
+      } catch {
+        localStorage.removeItem('financeUser');
+      }
+    }
+    setAuthLoading(false);
+  }, []);
 
   // Fetch existing users
   useEffect(() => {
@@ -131,6 +155,9 @@ export default function FinanceTrackerPage() {
       setIsAuthenticated(true);
       setAuthPassword('');
 
+      // Save to localStorage for session persistence
+      localStorage.setItem('financeUser', JSON.stringify(data.user));
+
       // Refresh users list if registered
       if (authMode === 'register') {
         setUsers((prev) => [...prev, data.user]);
@@ -168,6 +195,7 @@ export default function FinanceTrackerPage() {
   const openEntryForm = (month: Date, existingEntry?: FinanceEntry) => {
     setSelectedMonth(month);
     setShowEntryForm(true);
+    fetchClientCommission(month); // Fetch client commission for this month
 
     if (existingEntry) {
       setEditingEntry(existingEntry);
@@ -202,6 +230,53 @@ export default function FinanceTrackerPage() {
   // Remove sales item
   const removeSalesItem = (index: number) => {
     setSalesItems((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // Fetch client commission for the selected month
+  const fetchClientCommission = async (month: Date) => {
+    setLoadingCommission(true);
+    try {
+      const res = await fetch(`/api/clients/commission?month=${month.toISOString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        setClientCommission({
+          totalCommission: data.totalCommission,
+          clientCount: data.clientCount,
+          breakdown: data.breakdown,
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching client commission:', error);
+    } finally {
+      setLoadingCommission(false);
+    }
+  };
+
+  // Add client commission to sales items
+  const addClientCommission = () => {
+    if (!clientCommission || clientCommission.totalCommission === 0) return;
+
+    // Check if already added
+    const existingIndex = salesItems.findIndex(
+      (item) => item.name === 'Client Commissions (10%)'
+    );
+
+    if (existingIndex >= 0) {
+      // Update existing
+      setSalesItems((prev) =>
+        prev.map((item, i) =>
+          i === existingIndex
+            ? { ...item, amount: clientCommission.totalCommission }
+            : item
+        )
+      );
+    } else {
+      // Add new
+      setSalesItems((prev) => [
+        ...prev,
+        { name: 'Client Commissions (10%)', amount: clientCommission.totalCommission },
+      ]);
+    }
   };
 
   // Save entry
@@ -259,9 +334,18 @@ export default function FinanceTrackerPage() {
     setEntries([]);
     setStats(null);
     setAuthPassword('');
+    localStorage.removeItem('financeUser');
   };
 
-  // Login/Register Screen
+  // Login/Register Screen - show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-600" />
+      </div>
+    );
+  }
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -528,13 +612,21 @@ export default function FinanceTrackerPage() {
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setSelectedMonth(subMonths(selectedMonth, 1))}
+                  onClick={() => {
+                    const newMonth = subMonths(selectedMonth, 1);
+                    setSelectedMonth(newMonth);
+                    fetchClientCommission(newMonth);
+                  }}
                   className="p-2 text-gray-400 hover:text-gray-600"
                 >
                   ←
                 </button>
                 <button
-                  onClick={() => setSelectedMonth(addMonths(selectedMonth, 1))}
+                  onClick={() => {
+                    const newMonth = addMonths(selectedMonth, 1);
+                    setSelectedMonth(newMonth);
+                    fetchClientCommission(newMonth);
+                  }}
                   className="p-2 text-gray-400 hover:text-gray-600"
                 >
                   →
@@ -546,6 +638,41 @@ export default function FinanceTrackerPage() {
               {/* Sales Items */}
               <div>
                 <h4 className="font-semibold text-gray-900 mb-3">Sales / Income</h4>
+
+                {/* Client Commission Pull-in */}
+                {loadingCommission ? (
+                  <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 mb-3">
+                    <div className="flex items-center gap-2 text-indigo-600">
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-indigo-600 border-t-transparent" />
+                      <span className="text-sm">Loading client commissions...</span>
+                    </div>
+                  </div>
+                ) : clientCommission && clientCommission.totalCommission > 0 ? (
+                  <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 mb-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-sm font-medium text-indigo-900">
+                          Client Portfolio Commissions
+                        </div>
+                        <div className="text-xs text-indigo-600">
+                          {clientCommission.clientCount} clients | Total: ${clientCommission.totalCommission.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+                      </div>
+                      <button
+                        onClick={addClientCommission}
+                        className="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors"
+                      >
+                        {salesItems.some((item) => item.name === 'Client Commissions (10%)') ? 'Update' : 'Add'} to Sales
+                      </button>
+                    </div>
+                  </div>
+                ) : clientCommission ? (
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-3">
+                    <div className="text-sm text-gray-500">
+                      No client fees recorded for this month. <a href="/clients" className="text-indigo-600 hover:underline">Add fees in Client Portfolio</a>
+                    </div>
+                  </div>
+                ) : null}
 
                 {/* Existing sales items */}
                 <div className="space-y-2 mb-3">

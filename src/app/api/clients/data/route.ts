@@ -114,6 +114,47 @@ export async function GET() {
       ? (activeClients.length / clients.length) * 100
       : 100;
 
+    // Calculate average client lifetime (in months)
+    const clientLifetimes = clients.map((client) => {
+      const acquired = new Date(client.dateAcquired);
+      const endDate = client.churned && client.churnDate
+        ? new Date(client.churnDate)
+        : now;
+      return Math.max(1, Math.floor((endDate.getTime() - acquired.getTime()) / (1000 * 60 * 60 * 24 * 30)));
+    });
+    const avgClientLifetime = clientLifetimes.length > 0
+      ? clientLifetimes.reduce((a, b) => a + b, 0) / clientLifetimes.length
+      : 0;
+
+    // Calculate churn breakdown by month
+    const churnByMonth: Record<number, number> = {};
+    churnedClients.forEach((client) => {
+      const month = client.churnMonth || 1;
+      churnByMonth[month] = (churnByMonth[month] || 0) + 1;
+    });
+
+    // Calculate average fee growth per client (comparing first vs most recent fee)
+    let feeGrowthSum = 0;
+    let feeGrowthCount = 0;
+    clients.forEach((client) => {
+      if (client.feeHistory.length >= 2) {
+        const firstFee = client.feeHistory[client.feeHistory.length - 1].monthlyFee;
+        const latestFee = client.feeHistory[0].monthlyFee;
+        if (firstFee > 0) {
+          const growthPercent = ((latestFee - firstFee) / firstFee) * 100;
+          feeGrowthSum += growthPercent;
+          feeGrowthCount++;
+        }
+      }
+    });
+    const avgFeeGrowth = feeGrowthCount > 0 ? feeGrowthSum / feeGrowthCount : 0;
+
+    // Predict monthly commission based on trends
+    const monthsWithData = monthlyBreakdown.filter((m) => m.totalFees > 0);
+    const predictedMonthlyCommission = monthsWithData.length > 0
+      ? monthsWithData.reduce((sum, m) => sum + m.totalCommission, 0) / monthsWithData.length
+      : 0;
+
     // Format clients for display
     const formattedClients = clients.map((client) => {
       const recentFee = client.feeHistory[0];
@@ -166,9 +207,13 @@ export async function GET() {
         totalCommission,
         avgMonthlyFee,
         retentionRate,
+        avgClientLifetime,
+        avgFeeGrowth,
+        predictedMonthlyCommission,
       },
       monthlyBreakdown,
       clientTypeBreakdown,
+      churnByMonth,
       lastUpdated: new Date().toISOString(),
     });
   } catch (error) {

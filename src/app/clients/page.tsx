@@ -42,6 +42,9 @@ interface ClientData {
     totalCommission: number;
     avgMonthlyFee: number;
     retentionRate: number;
+    avgClientLifetime: number;
+    avgFeeGrowth: number;
+    predictedMonthlyCommission: number;
   };
   monthlyBreakdown: {
     month: string;
@@ -51,6 +54,7 @@ interface ClientData {
     activeClients: number;
   }[];
   clientTypeBreakdown: Record<string, { count: number; totalFees: number }>;
+  churnByMonth: Record<number, number>;
   lastUpdated: string;
 }
 
@@ -382,6 +386,49 @@ export default function ClientsPage() {
               </div>
             </div>
 
+            {/* Predictive Analytics */}
+            <div className="mt-6 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-lg border border-emerald-100 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Predictive Analytics</h3>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-white/60 rounded-lg p-4 text-center">
+                  <div className="text-xs text-gray-500 uppercase mb-1">Avg Client Lifetime</div>
+                  <div className="text-2xl font-bold text-emerald-600">
+                    {data.summary.avgClientLifetime.toFixed(1)} months
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    How long clients typically stay
+                  </div>
+                </div>
+                <div className="bg-white/60 rounded-lg p-4 text-center">
+                  <div className="text-xs text-gray-500 uppercase mb-1">Avg Fee Growth</div>
+                  <div className={`text-2xl font-bold ${data.summary.avgFeeGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {data.summary.avgFeeGrowth >= 0 ? '+' : ''}{data.summary.avgFeeGrowth.toFixed(1)}%
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Fee change from first to latest
+                  </div>
+                </div>
+                <div className="bg-white/60 rounded-lg p-4 text-center">
+                  <div className="text-xs text-gray-500 uppercase mb-1">Predicted Monthly Commission</div>
+                  <div className="text-2xl font-bold text-teal-600">
+                    ${data.summary.predictedMonthlyCommission.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Based on historical average
+                  </div>
+                </div>
+                <div className="bg-white/60 rounded-lg p-4 text-center">
+                  <div className="text-xs text-gray-500 uppercase mb-1">Client Lifetime Value</div>
+                  <div className="text-2xl font-bold text-purple-600">
+                    ${(data.summary.avgMonthlyFee * 0.1 * data.summary.avgClientLifetime).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Avg commission per client
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Client Type Breakdown */}
             <div className="mt-6 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Client Type Breakdown</h3>
@@ -397,6 +444,27 @@ export default function ClientsPage() {
                 ))}
               </div>
             </div>
+
+            {/* Churn Analysis */}
+            {data.churnByMonth && Object.keys(data.churnByMonth).length > 0 && (
+              <div className="mt-6 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Churn Analysis</h3>
+                <div className="text-sm text-gray-600 mb-4">
+                  Understanding when clients churn helps predict retention and plan follow-ups
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  {Object.entries(data.churnByMonth)
+                    .sort(([a], [b]) => parseInt(a) - parseInt(b))
+                    .map(([month, count]) => (
+                      <div key={month} className="bg-red-50 border border-red-200 rounded-lg px-4 py-2 text-center">
+                        <div className="text-xs text-red-600 uppercase">Month {month}</div>
+                        <div className="text-xl font-bold text-red-700">{count}</div>
+                        <div className="text-xs text-red-500">churned</div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
