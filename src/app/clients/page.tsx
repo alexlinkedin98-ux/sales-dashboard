@@ -716,7 +716,7 @@ export default function ClientsPage() {
 
       {/* Add Client Modal */}
       {showAddClient && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Add New Client</h3>
             <form onSubmit={handleAddClient} className="space-y-4">
@@ -813,7 +813,7 @@ export default function ClientsPage() {
 
       {/* Add Fee Modal */}
       {showAddFee && selectedClient && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Add Monthly Fee - {selectedClient.clientName}
@@ -870,7 +870,7 @@ export default function ClientsPage() {
 
       {/* Edit Client Modal */}
       {editClient && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Edit Client - {editClient.clientName}</h3>
             <form onSubmit={handleUpdateClient} className="space-y-4">
