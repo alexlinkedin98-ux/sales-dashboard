@@ -668,6 +668,26 @@ export default function ClientsPage() {
                       </tr>
                     ))}
                   </tbody>
+                  <tfoot className="bg-gray-100 border-t-2 border-gray-300">
+                    <tr>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900">
+                        TOTAL ({filteredClients.length} clients)
+                      </td>
+                      <td className="px-4 py-3"></td>
+                      <td className="px-4 py-3"></td>
+                      <td className="px-4 py-3"></td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-blue-700 text-center">
+                        ${filteredClients.reduce((sum, c) => sum + c.currentFee, 0).toLocaleString()}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-emerald-700 text-center">
+                        ${filteredClients.reduce((sum, c) => sum + c.currentCommission, 0).toLocaleString()}
+                      </td>
+                      <td className="px-4 py-3"></td>
+                      <td className="px-4 py-3"></td>
+                      <td className="px-4 py-3"></td>
+                      <td className="px-4 py-3"></td>
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
             )}
