@@ -23,7 +23,7 @@ export function Navigation({ currentPage }: NavigationProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const isOtherPage = ['upsells', 'reviews', 'call-analysis', 'follow-ups', 'sales-checklist', 'finance'].includes(currentPage);
+  const isOtherPage = ['upsells', 'reviews', 'call-analysis', 'follow-ups', 'sales-checklist', 'finance', 'clients'].includes(currentPage);
 
   return (
     <div className="flex gap-2 flex-wrap">
@@ -56,21 +56,6 @@ export function Navigation({ currentPage }: NavigationProps) {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
         </svg>
         Marketing
-      </a>
-
-      {/* Client Portfolio */}
-      <a
-        href="/clients"
-        className={`inline-flex items-center px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
-          currentPage === 'clients'
-            ? 'bg-indigo-600 text-white'
-            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-        }`}
-      >
-        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-        </svg>
-        Clients
       </a>
 
       {/* Other Dropdown */}
@@ -178,7 +163,25 @@ export function Navigation({ currentPage }: NavigationProps) {
               </svg>
               Finance Tracker
             </a>
-            {/* Context-aware Triage links */}
+            {/* Context-aware links */}
+            {(currentPage === 'finance' || currentPage === 'clients') && (
+              <>
+                <div className="border-t border-gray-100 my-1" />
+                <a
+                  href="/clients"
+                  className={`flex items-center px-4 py-2 text-sm transition-colors ${
+                    currentPage === 'clients'
+                      ? 'bg-indigo-50 text-indigo-700'
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <svg className="w-4 h-4 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  Client Portfolio
+                </a>
+              </>
+            )}
             {currentPage === 'sales' && (
               <>
                 <div className="border-t border-gray-100 my-1" />
