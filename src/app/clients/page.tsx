@@ -61,7 +61,7 @@ interface ClientData {
 type ViewMode = 'clients' | 'monthly' | 'summary';
 type FilterMode = 'all' | 'active' | 'churned';
 
-const CLIENT_TYPES = ['Google Ads', 'Meta', 'Google + Meta'];
+const CLIENT_TYPES = ['Google Ads DFY', 'Google Ads DWY', 'Meta', 'Google + Meta'];
 
 export default function ClientsPage() {
   const [data, setData] = useState<ClientData | null>(null);
@@ -76,7 +76,7 @@ export default function ClientsPage() {
   // Form states
   const [newClient, setNewClient] = useState({
     clientName: '',
-    clientType: 'Google Ads',
+    clientType: 'Google Ads DFY',
     dateAcquired: new Date().toISOString().split('T')[0],
     initialFee: 0,
     fupSequenceActive: true,
