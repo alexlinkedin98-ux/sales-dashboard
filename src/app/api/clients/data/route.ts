@@ -160,20 +160,20 @@ export async function GET() {
       const recentFee = client.feeHistory[0];
       const previousFee = client.feeHistory[1];
 
-      // Calculate fee trend
+      // Calculate fee trend (only for non-churned clients)
       let feeTrend: 'up' | 'down' | 'stable' = 'stable';
       let feeChange = 0;
-      if (recentFee && previousFee) {
+      if (!client.churned && recentFee && previousFee) {
         feeChange = recentFee.monthlyFee - previousFee.monthlyFee;
         if (feeChange > 0) feeTrend = 'up';
         else if (feeChange < 0) feeTrend = 'down';
       }
 
-      // Calculate months active
+      // Calculate months active (proper month calculation)
       const acquiredDate = new Date(client.dateAcquired);
-      const monthsActive = Math.floor(
-        (now.getTime() - acquiredDate.getTime()) / (1000 * 60 * 60 * 24 * 30)
-      ) + 1;
+      const monthsActive =
+        (now.getFullYear() - acquiredDate.getFullYear()) * 12 +
+        (now.getMonth() - acquiredDate.getMonth()) + 1;
 
       return {
         id: client.id,
