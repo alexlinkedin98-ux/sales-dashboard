@@ -574,11 +574,11 @@ export default function ClientsPage() {
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 text-center">
                           {client.monthsActive}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-blue-600 text-center">
-                          ${client.currentFee.toLocaleString()}
+                        <td className={`px-4 py-3 whitespace-nowrap text-sm font-semibold text-center ${client.churned ? 'text-gray-400' : 'text-blue-600'}`}>
+                          {client.churned ? '$0' : `$${client.currentFee.toLocaleString()}`}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-emerald-600 text-center">
-                          ${client.currentCommission.toLocaleString()}
+                        <td className={`px-4 py-3 whitespace-nowrap text-sm font-bold text-center ${client.churned ? 'text-gray-400' : 'text-emerald-600'}`}>
+                          {client.churned ? '$0' : `$${client.currentCommission.toLocaleString()}`}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
                           {client.feeTrend === 'up' && (
@@ -628,24 +628,26 @@ export default function ClientsPage() {
                           )}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-center space-x-2">
-                          <button
-                            onClick={() => {
-                              setSelectedClient(client);
-                              setNewFee({
-                                monthStartDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-                                  .toISOString()
-                                  .split('T')[0],
-                                monthlyFee: client.currentFee,
-                              });
-                              setShowAddFee(true);
-                            }}
-                            className="text-indigo-600 hover:text-indigo-800"
-                            title="Add Fee"
-                          >
-                            <svg className="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                            </svg>
-                          </button>
+                          {!client.churned && (
+                            <button
+                              onClick={() => {
+                                setSelectedClient(client);
+                                setNewFee({
+                                  monthStartDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+                                    .toISOString()
+                                    .split('T')[0],
+                                  monthlyFee: client.currentFee,
+                                });
+                                setShowAddFee(true);
+                              }}
+                              className="text-indigo-600 hover:text-indigo-800"
+                              title="Add Fee"
+                            >
+                              <svg className="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                              </svg>
+                            </button>
+                          )}
                           <button
                             onClick={() => {
                               setEditClient(client);
@@ -677,10 +679,10 @@ export default function ClientsPage() {
                       <td className="px-4 py-3"></td>
                       <td className="px-4 py-3"></td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-blue-700 text-center">
-                        ${filteredClients.reduce((sum, c) => sum + c.currentFee, 0).toLocaleString()}
+                        ${filteredClients.filter(c => !c.churned).reduce((sum, c) => sum + c.currentFee, 0).toLocaleString()}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-emerald-700 text-center">
-                        ${filteredClients.reduce((sum, c) => sum + c.currentCommission, 0).toLocaleString()}
+                        ${filteredClients.filter(c => !c.churned).reduce((sum, c) => sum + c.currentCommission, 0).toLocaleString()}
                       </td>
                       <td className="px-4 py-3"></td>
                       <td className="px-4 py-3"></td>
