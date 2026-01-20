@@ -61,7 +61,7 @@ interface ClientData {
 type ViewMode = 'clients' | 'monthly' | 'summary';
 type FilterMode = 'all' | 'active' | 'churned';
 
-const CLIENT_TYPES = ['Google Ads DFY', 'Google Ads DWY', 'Meta', 'Google + Meta'];
+const CLIENT_TYPES = ['Google Ads', 'Google Ads DFY', 'Google Ads DWY', 'Meta', 'Google + Meta'];
 
 export default function ClientsPage() {
   const [data, setData] = useState<ClientData | null>(null);
