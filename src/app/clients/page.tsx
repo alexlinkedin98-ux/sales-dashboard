@@ -581,24 +581,30 @@ export default function ClientsPage() {
                           {client.churned ? '$0' : `$${client.currentCommission.toLocaleString()}`}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
-                          {client.feeTrend === 'up' && (
-                            <span className="text-green-600">
-                              <svg className="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                              </svg>
-                              +${client.feeChange.toLocaleString()}
-                            </span>
-                          )}
-                          {client.feeTrend === 'down' && (
-                            <span className="text-red-600">
-                              <svg className="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                              </svg>
-                              ${client.feeChange.toLocaleString()}
-                            </span>
-                          )}
-                          {client.feeTrend === 'stable' && (
+                          {client.churned ? (
                             <span className="text-gray-400">-</span>
+                          ) : (
+                            <>
+                              {client.feeTrend === 'up' && (
+                                <span className="text-green-600">
+                                  <svg className="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                  </svg>
+                                  +${client.feeChange.toLocaleString()}
+                                </span>
+                              )}
+                              {client.feeTrend === 'down' && (
+                                <span className="text-red-600">
+                                  <svg className="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                  </svg>
+                                  ${client.feeChange.toLocaleString()}
+                                </span>
+                              )}
+                              {client.feeTrend === 'stable' && (
+                                <span className="text-gray-400">-</span>
+                              )}
+                            </>
                           )}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
