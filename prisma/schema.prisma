@@ -730,3 +730,63 @@ model FinanceEntry {
   // Unique constraint - one entry per user per month
   @@unique([userId, monthStartDate])
 }
+
+// =============================================
+// CLIENT PORTFOLIO TRACKING
+// =============================================
+
+// Client Portfolio - tracks individual clients and their monthly fees
+model ClientPortfolio {
+  id                String   @id @default(cuid())
+
+  // Client Information
+  clientName        String   @unique  // Unique client name
+  clientType        String   // "Google Ads", "Meta", "Google + Meta"
+
+  // Acquisition date (when deal was closed)
+  dateAcquired      DateTime @default(now())
+  dateAcquiredLabel String   // e.g., "January 15, 2026"
+
+  // Current status
+  isActive          Boolean  @default(true)
+  churned           Boolean  @default(false)
+  churnMonth        Int?     // Which month they churned (2, 3, 4, etc.)
+  churnDate         DateTime?
+
+  // Follow-up sequence tracking (loyalty emails)
+  fupSequenceActive Boolean  @default(true)  // Is the 12-email loyalty sequence working
+
+  // Notes
+  notes             String?  @db.Text
+
+  // Timestamps
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  feeHistory        ClientFeeEntry[]
+}
+
+// Monthly fee tracking for each client
+model ClientFeeEntry {
+  id                String   @id @default(cuid())
+
+  // Link to client
+  clientId          String
+  client            ClientPortfolio @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  // Month information
+  monthStartDate    DateTime  // First day of the month
+  monthLabel        String    // e.g., "January 2026"
+
+  // Fee data
+  monthlyFee        Float     @default(0)  // The fee charged this month
+  commission        Float     @default(0)  // 10% of monthlyFee (auto-calculated)
+
+  // Timestamps
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Unique constraint - one entry per client per month
+  @@unique([clientId, monthStartDate])
+}
