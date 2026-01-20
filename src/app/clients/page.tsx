@@ -256,6 +256,15 @@ export default function ClientsPage() {
             <div className="flex gap-2 items-center">
               <Navigation currentPage="clients" />
               <div className="w-px h-6 bg-gray-300 mx-1" />
+              <a
+                href="/finance"
+                className="inline-flex items-center px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors text-sm font-medium"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Finance Tracker
+              </a>
               <button
                 onClick={() => setShowAddClient(true)}
                 className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
