@@ -345,6 +345,15 @@ export async function POST(request: NextRequest) {
 
         } else if (stepToSend === 5) {
           // Step 5: Automated phone call via Vapi
+          // Business hours check: only call 9 AM - 5 PM ET
+          const etTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+          const etHour = etTime.getHours();
+          const etDay = etTime.getDay(); // 0=Sun, 6=Sat
+          if (etHour < 9 || etHour >= 17 || etDay === 0 || etDay === 6) {
+            // Outside business hours — skip, cron will retry next hour
+            continue;
+          }
+
           const callLabel = seq.callAnalysis?.callLabel || 'your Google Ads';
 
           const vapiResult = await createOutboundCall({

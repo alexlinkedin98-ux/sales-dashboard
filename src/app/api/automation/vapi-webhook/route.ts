@@ -61,19 +61,48 @@ export async function POST(request: NextRequest) {
         vapiCallStatus = 'completed';
       }
 
-      // Mark step 5 done and set step 6 due
-      const step6Due = new Date();
-      step6Due.setDate(step6Due.getDate() + 2);
+      // Retry logic: if not answered and this was the first attempt, schedule a retry
+      const isFirstAttempt = !sequence.step5Notes;
+      const shouldRetry = !wasAnswered && isFirstAttempt;
 
-      await prisma.followUpSequence.update({
-        where: { id: sequence.id },
-        data: {
-          step5Done: true,
-          step5Notes: notes,
-          vapiCallStatus,
-          step6Due,
-        },
-      });
+      if (shouldRetry) {
+        // First attempt failed — schedule retry in 3 hours (or next business morning)
+        const retryTime = new Date();
+        const etHour = getETHour(retryTime);
+        if (etHour >= 16) {
+          // After 4 PM ET — retry tomorrow at 10 AM ET
+          retryTime.setDate(retryTime.getDate() + 1);
+          setETHour(retryTime, 10);
+        } else {
+          retryTime.setHours(retryTime.getHours() + 3);
+        }
+
+        await prisma.followUpSequence.update({
+          where: { id: sequence.id },
+          data: {
+            step5Notes: notes + '\n[Retry scheduled]',
+            vapiCallStatus: null,  // Clear so cron picks it up again
+            vapiCallId: null,
+            step5Due: retryTime,
+          },
+        });
+      } else {
+        // Either answered, or this was the retry — mark step 5 done
+        const step6Due = new Date();
+        step6Due.setDate(step6Due.getDate() + 2);
+
+        const finalNotes = isFirstAttempt ? notes : (sequence.step5Notes || '').replace('\n[Retry scheduled]', '') + '\n---\nRetry attempt:\n' + notes;
+
+        await prisma.followUpSequence.update({
+          where: { id: sequence.id },
+          data: {
+            step5Done: true,
+            step5Notes: finalNotes,
+            vapiCallStatus,
+            step6Due,
+          },
+        });
+      }
 
       await prisma.automationLog.create({
         data: {
@@ -122,6 +151,21 @@ export async function POST(request: NextRequest) {
     console.error('Vapi webhook error:', error);
     return NextResponse.json({ error: 'Webhook processing failed' }, { status: 500 });
   }
+}
+
+/** Get current hour in US Eastern Time */
+function getETHour(date: Date): number {
+  const et = new Date(date.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  return et.getHours();
+}
+
+/** Set a Date to a specific hour in ET (approximate — shifts UTC) */
+function setETHour(date: Date, hour: number): void {
+  const et = new Date(date.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const currentETHour = et.getHours();
+  const diff = hour - currentETHour;
+  date.setHours(date.getHours() + diff);
+  date.setMinutes(0, 0, 0);
 }
 
 function buildCallNotes(params: {
