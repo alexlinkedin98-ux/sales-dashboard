@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
           { step2Due: { lte: now }, step2Done: false, contactPhone: { not: null } },
           { step3Due: { lte: now }, step3Done: false, contactEmail: { not: null } },
           { step4Due: { lte: now }, step4Done: false, contactPhone: { not: null } },
-          { step5Due: { lte: now }, step5Done: false, contactPhone: { not: null }, vapiCallStatus: { notIn: ['calling', 'in_progress'] } },
+          { step5Due: { lte: now }, step5Done: false, contactPhone: { not: null }, OR: [{ vapiCallStatus: null }, { vapiCallStatus: { notIn: ['calling', 'in_progress'] } }] },
           { step6Due: { lte: now }, step6Done: false, contactEmail: { not: null } },
         ],
       },
