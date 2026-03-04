@@ -13,6 +13,7 @@ export interface WeeklyData {
   dealsClosed: number;
   proposalRate: number; // calculated
   closeRate: number; // calculated: closed/proposals
+  marketingCloseRate: number; // calculated: closed/scheduled (end-to-end from booked meetings)
   thisMonthMRR: number;
   mrrPerCallTaken: number;
   mrrPerAudit: number;
@@ -30,6 +31,7 @@ export interface MonthlySummary {
   totalClosed: number;
   proposalRate: number;
   closeRate: number;
+  marketingCloseRate: number;
   totalMRR: number;
   mrrPerCallTaken: number;
   mrrPerAudit: number;
@@ -48,6 +50,7 @@ export interface QuarterlySummary {
   totalClosed: number;
   proposalRate: number;
   closeRate: number;
+  marketingCloseRate: number;
   totalMRR: number;
   mrrPerCallTaken: number;
   mrrPerAudit: number;

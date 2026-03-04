@@ -63,7 +63,43 @@ interface SalesRep {
   name: string;
 }
 
-type ViewMode = 'weekly' | 'monthly' | 'summary';
+type ViewMode = 'weekly' | 'monthly' | 'summary' | 'pipeline';
+
+interface PipelineClient {
+  id: string;
+  clientName: string;
+  clientType: string;
+  currentFee: number;
+  upsellLandingPage: boolean;
+  upsellFacebookMgmt: boolean;
+  lastCheckIn: {
+    date: string;
+    analystName: string;
+    status: string;
+    notes: string | null;
+  } | null;
+  daysSinceCheckIn: number | null;
+  isOverdue: boolean;
+}
+
+interface PipelineData {
+  clients: PipelineClient[];
+  summary: {
+    totalActive: number;
+    totalWithPotential: number;
+    overdueCount: number;
+    readyCount: number;
+  };
+  lastUpdated: string;
+}
+
+interface CheckIn {
+  id: string;
+  checkInDate: string;
+  analystName: string;
+  status: string;
+  notes: string | null;
+}
 
 export default function UpsellsPage() {
   const [data, setData] = useState<UpsellData | null>(null);
@@ -82,6 +118,16 @@ export default function UpsellsPage() {
     dealsClosed: number;
     upsellRevenue: number;
   } | null>(null);
+
+  // Pipeline state
+  const [pipelineData, setPipelineData] = useState<PipelineData | null>(null);
+  const [pipelineLoading, setPipelineLoading] = useState(false);
+  const [showCheckInModal, setShowCheckInModal] = useState(false);
+  const [selectedPipelineClient, setSelectedPipelineClient] = useState<PipelineClient | null>(null);
+  const [expandedClientId, setExpandedClientId] = useState<string | null>(null);
+  const [checkInHistory, setCheckInHistory] = useState<Record<string, CheckIn[]>>({});
+  const [checkInForm, setCheckInForm] = useState({ analystName: '', status: 'not_yet', notes: '' });
+  const [savingCheckIn, setSavingCheckIn] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -112,6 +158,86 @@ export default function UpsellsPage() {
       }
     } catch (error) {
       console.error('Error fetching reps:', error);
+    }
+  };
+
+  const fetchPipelineData = async () => {
+    setPipelineLoading(true);
+    try {
+      const response = await fetch('/api/upsell-pipeline/data');
+      if (response.ok) {
+        const result = await response.json();
+        setPipelineData(result);
+      }
+    } catch (error) {
+      console.error('Error fetching pipeline data:', error);
+    } finally {
+      setPipelineLoading(false);
+    }
+  };
+
+  // Fetch pipeline data when switching to pipeline tab
+  useEffect(() => {
+    if (viewMode === 'pipeline' && !pipelineData) {
+      fetchPipelineData();
+    }
+  }, [viewMode, pipelineData]);
+
+  const fetchCheckInHistory = async (clientId: string) => {
+    try {
+      const response = await fetch(`/api/upsell-pipeline/checkins/${clientId}`);
+      if (response.ok) {
+        const result = await response.json();
+        setCheckInHistory(prev => ({ ...prev, [clientId]: result }));
+      }
+    } catch (error) {
+      console.error('Error fetching check-in history:', error);
+    }
+  };
+
+  const handleCheckIn = async () => {
+    if (!selectedPipelineClient || !checkInForm.analystName.trim()) return;
+    setSavingCheckIn(true);
+    try {
+      const response = await fetch('/api/upsell-pipeline/checkins', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientId: selectedPipelineClient.id,
+          analystName: checkInForm.analystName.trim(),
+          status: checkInForm.status,
+          notes: checkInForm.notes.trim() || null,
+        }),
+      });
+      if (response.ok) {
+        setShowCheckInModal(false);
+        setCheckInForm({ analystName: '', status: 'not_yet', notes: '' });
+        setSelectedPipelineClient(null);
+        fetchPipelineData();
+        // Refresh history if it was expanded
+        if (expandedClientId) {
+          fetchCheckInHistory(expandedClientId);
+        }
+      }
+    } catch (error) {
+      console.error('Error saving check-in:', error);
+    } finally {
+      setSavingCheckIn(false);
+    }
+  };
+
+  const toggleUpsellPotential = async (clientId: string, field: 'upsellLandingPage' | 'upsellFacebookMgmt', currentValue: boolean) => {
+    try {
+      const response = await fetch(`/api/clients/${clientId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [field]: !currentValue }),
+      });
+      if (response.ok) {
+        fetchPipelineData();
+      }
+    } catch (error) {
+      console.error('Error toggling upsell potential:', error);
     }
   };
 
@@ -227,6 +353,7 @@ export default function UpsellsPage() {
                 { key: 'weekly', label: 'Weekly' },
                 { key: 'monthly', label: 'Monthly' },
                 { key: 'summary', label: 'Summary' },
+                { key: 'pipeline', label: 'Client Pipeline' },
               ].map((tab) => (
                 <button
                   key={tab.key}
@@ -356,7 +483,7 @@ export default function UpsellsPage() {
                           <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Meeting Rate</th>
                           <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Proposals</th>
                           <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Closed</th>
-                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Close Rate</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Sales Close Rate</th>
                           <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Revenue</th>
                           <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
                         </tr>
@@ -436,7 +563,7 @@ export default function UpsellsPage() {
                           <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Meeting Rate</th>
                           <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Proposals</th>
                           <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Closed</th>
-                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Close Rate</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Sales Close Rate</th>
                           <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Revenue</th>
                         </tr>
                       </thead>
@@ -470,8 +597,224 @@ export default function UpsellsPage() {
           </div>
         )}
 
+        {/* Client Pipeline View */}
+        {viewMode === 'pipeline' && (
+          <div className="space-y-6">
+            {pipelineLoading ? (
+              <div className="text-center py-16">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading client pipeline...</p>
+              </div>
+            ) : pipelineData ? (
+              <>
+                {/* Summary Cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-white rounded-lg border border-gray-200 p-4">
+                    <div className="text-2xl font-bold text-gray-900">{pipelineData.summary.totalActive}</div>
+                    <div className="text-sm text-gray-500">Active Clients</div>
+                  </div>
+                  <div className="bg-white rounded-lg border border-gray-200 p-4">
+                    <div className="text-2xl font-bold text-orange-600">{pipelineData.summary.totalWithPotential}</div>
+                    <div className="text-sm text-gray-500">Upsell Potential</div>
+                  </div>
+                  <div className="bg-white rounded-lg border border-gray-200 p-4">
+                    <div className={`text-2xl font-bold ${pipelineData.summary.overdueCount > 0 ? 'text-red-600' : 'text-gray-400'}`}>
+                      {pipelineData.summary.overdueCount}
+                    </div>
+                    <div className="text-sm text-gray-500">Overdue Check-ins</div>
+                  </div>
+                  <div className="bg-white rounded-lg border border-gray-200 p-4">
+                    <div className="text-2xl font-bold text-green-600">{pipelineData.summary.readyCount}</div>
+                    <div className="text-sm text-gray-500">Ready for Upsell</div>
+                  </div>
+                </div>
+
+                {/* Client Table */}
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Type</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Fee</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Upsell Potential</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Last Check-in</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Days Since</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {pipelineData.clients.map((client, idx) => (
+                          <tr key={client.id}>
+                            <td colSpan={8} className="p-0">
+                              <div>
+                                <div className={`flex items-center ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} ${client.isOverdue && (client.upsellLandingPage || client.upsellFacebookMgmt) ? 'border-l-4 border-l-red-400' : ''}`}>
+                                  <div className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 flex-1 min-w-[160px]">
+                                    {client.clientName}
+                                  </div>
+                                  <div className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 text-center min-w-[100px]">
+                                    {client.clientType}
+                                  </div>
+                                  <div className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-center min-w-[80px]">
+                                    ${client.currentFee.toLocaleString()}
+                                  </div>
+                                  <div className="px-4 py-3 whitespace-nowrap text-center min-w-[160px]">
+                                    <div className="flex gap-1 justify-center">
+                                      <button
+                                        onClick={() => toggleUpsellPotential(client.id, 'upsellLandingPage', client.upsellLandingPage)}
+                                        className={`px-2 py-0.5 text-xs font-medium rounded-full transition-colors ${
+                                          client.upsellLandingPage
+                                            ? 'bg-orange-100 text-orange-800 hover:bg-orange-200'
+                                            : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                                        }`}
+                                      >
+                                        LP
+                                      </button>
+                                      <button
+                                        onClick={() => toggleUpsellPotential(client.id, 'upsellFacebookMgmt', client.upsellFacebookMgmt)}
+                                        className={`px-2 py-0.5 text-xs font-medium rounded-full transition-colors ${
+                                          client.upsellFacebookMgmt
+                                            ? 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+                                            : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                                        }`}
+                                      >
+                                        FB
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <div className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 text-center min-w-[120px]">
+                                    {client.lastCheckIn
+                                      ? new Date(client.lastCheckIn.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                                      : <span className="text-gray-300">Never</span>}
+                                  </div>
+                                  <div className="px-4 py-3 whitespace-nowrap text-sm text-center min-w-[80px]">
+                                    {client.daysSinceCheckIn !== null ? (
+                                      <span className={`font-medium ${
+                                        client.daysSinceCheckIn <= 14 ? 'text-green-600' :
+                                        client.daysSinceCheckIn <= 29 ? 'text-yellow-600' :
+                                        'text-red-600'
+                                      }`}>
+                                        {client.daysSinceCheckIn}d
+                                      </span>
+                                    ) : (
+                                      <span className="text-red-400 flex items-center justify-center gap-1">
+                                        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                        </svg>
+                                        Never
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="px-4 py-3 whitespace-nowrap text-center min-w-[80px]">
+                                    {client.lastCheckIn ? (
+                                      <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                                        client.lastCheckIn.status === 'ready' ? 'bg-green-100 text-green-800' :
+                                        client.lastCheckIn.status === 'maybe' ? 'bg-yellow-100 text-yellow-800' :
+                                        'bg-gray-100 text-gray-600'
+                                      }`}>
+                                        {client.lastCheckIn.status === 'ready' ? 'Ready' :
+                                         client.lastCheckIn.status === 'maybe' ? 'Maybe' : 'Not Yet'}
+                                      </span>
+                                    ) : (
+                                      <span className="text-gray-300">-</span>
+                                    )}
+                                  </div>
+                                  <div className="px-4 py-3 whitespace-nowrap text-sm text-center min-w-[140px]">
+                                    <div className="flex gap-2 justify-center">
+                                      <button
+                                        onClick={() => {
+                                          setSelectedPipelineClient(client);
+                                          setCheckInForm({ analystName: '', status: 'not_yet', notes: '' });
+                                          setShowCheckInModal(true);
+                                        }}
+                                        className="px-2.5 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700"
+                                      >
+                                        Check In
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          if (expandedClientId === client.id) {
+                                            setExpandedClientId(null);
+                                          } else {
+                                            setExpandedClientId(client.id);
+                                            if (!checkInHistory[client.id]) {
+                                              fetchCheckInHistory(client.id);
+                                            }
+                                          }
+                                        }}
+                                        className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded hover:bg-gray-200"
+                                      >
+                                        <svg className={`w-4 h-4 transition-transform ${expandedClientId === client.id ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                                {/* Expanded Check-in History */}
+                                {expandedClientId === client.id && (
+                                  <div className="bg-gray-50 border-t border-gray-200 px-8 py-4">
+                                    <h4 className="text-sm font-medium text-gray-700 mb-3">Check-in History</h4>
+                                    {!checkInHistory[client.id] ? (
+                                      <p className="text-sm text-gray-400">Loading...</p>
+                                    ) : checkInHistory[client.id].length === 0 ? (
+                                      <p className="text-sm text-gray-400">No check-ins recorded yet.</p>
+                                    ) : (
+                                      <table className="min-w-full divide-y divide-gray-200">
+                                        <thead>
+                                          <tr>
+                                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Analyst</th>
+                                            <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
+                                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Notes</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100">
+                                          {checkInHistory[client.id].map((ci) => (
+                                            <tr key={ci.id}>
+                                              <td className="px-3 py-2 text-sm text-gray-600">
+                                                {new Date(ci.checkInDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                              </td>
+                                              <td className="px-3 py-2 text-sm text-gray-600">{ci.analystName}</td>
+                                              <td className="px-3 py-2 text-center">
+                                                <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                                                  ci.status === 'ready' ? 'bg-green-100 text-green-800' :
+                                                  ci.status === 'maybe' ? 'bg-yellow-100 text-yellow-800' :
+                                                  'bg-gray-100 text-gray-600'
+                                                }`}>
+                                                  {ci.status === 'ready' ? 'Ready' : ci.status === 'maybe' ? 'Maybe' : 'Not Yet'}
+                                                </span>
+                                              </td>
+                                              <td className="px-3 py-2 text-sm text-gray-500">{ci.notes || '-'}</td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-16">
+                <p className="text-gray-500">Failed to load pipeline data.</p>
+                <button onClick={fetchPipelineData} className="mt-2 text-blue-600 hover:underline">Retry</button>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Empty State */}
-        {(!data || data.reps.every(r => r.weeklyData.length === 0)) && viewMode !== 'summary' && (
+        {(!data || data.reps.every(r => r.weeklyData.length === 0)) && viewMode !== 'summary' && viewMode !== 'pipeline' && (
           <div className="text-center py-16">
             <svg className="mx-auto h-16 w-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
@@ -585,6 +928,80 @@ export default function UpsellsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Check-In Modal */}
+      {showCheckInModal && selectedPipelineClient && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold text-gray-900">
+                Check In - {selectedPipelineClient.clientName}
+              </h2>
+              <button
+                onClick={() => { setShowCheckInModal(false); setSelectedPipelineClient(null); }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Analyst Name *</label>
+                <input
+                  type="text"
+                  value={checkInForm.analystName}
+                  onChange={(e) => setCheckInForm(f => ({ ...f, analystName: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  placeholder="Who manages this account?"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status *</label>
+                <select
+                  value={checkInForm.status}
+                  onChange={(e) => setCheckInForm(f => ({ ...f, status: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                >
+                  <option value="not_yet">Not Yet - Not ready for upsell</option>
+                  <option value="maybe">Maybe - Could be soon</option>
+                  <option value="ready">Ready - Good to go for upsell</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea
+                  value={checkInForm.notes}
+                  onChange={(e) => setCheckInForm(f => ({ ...f, notes: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  rows={3}
+                  placeholder="What did the analyst say? Any context..."
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => { setShowCheckInModal(false); setSelectedPipelineClient(null); }}
+                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCheckIn}
+                disabled={savingCheckIn || !checkInForm.analystName.trim()}
+                className="flex-1 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {savingCheckIn ? 'Saving...' : 'Save Check-in'}
+              </button>
+            </div>
           </div>
         </div>
       )}

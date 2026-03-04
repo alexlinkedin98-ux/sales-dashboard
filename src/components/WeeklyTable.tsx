@@ -160,7 +160,10 @@ export function WeeklyTable({ data, repName, onEdit, onDelete, onBulkDelete }: W
                 Closed
               </th>
               <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Close Rate
+                Sales Close Rate
+              </th>
+              <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Marketing Close Rate
               </th>
               <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                 MRR
@@ -222,6 +225,11 @@ export function WeeklyTable({ data, repName, onEdit, onDelete, onBulkDelete }: W
                 <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500 text-center">
                   <span className={week.closeRate >= 50 ? 'text-green-600' : week.closeRate >= 30 ? 'text-yellow-600' : 'text-red-600'}>
                     {formatPercent(week.closeRate)}
+                  </span>
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500 text-center">
+                  <span className={week.marketingCloseRate >= 20 ? 'text-green-600' : week.marketingCloseRate >= 10 ? 'text-yellow-600' : 'text-red-600'}>
+                    {formatPercent(week.marketingCloseRate)}
                   </span>
                 </td>
                 <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 text-center font-semibold">

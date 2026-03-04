@@ -13,6 +13,10 @@ function calculateCloseRate(proposals: number, closed: number): number {
   return proposals > 0 ? (closed / proposals) * 100 : 0;
 }
 
+function calculateMarketingCloseRate(scheduled: number, closed: number): number {
+  return scheduled > 0 ? (closed / scheduled) * 100 : 0;
+}
+
 function calculateProposalRate(audited: number, proposals: number): number {
   return audited > 0 ? (proposals / audited) * 100 : 0;
 }
@@ -55,6 +59,7 @@ function calculateMonthlySummary(weeklyData: WeeklyData[], month: string): Month
     totalClosed,
     proposalRate: calculateProposalRate(totalAccountsAudited, totalProposals),
     closeRate: calculateCloseRate(totalProposals, totalClosed),
+    marketingCloseRate: calculateMarketingCloseRate(totalCallsScheduled, totalClosed),
     totalMRR,
     mrrPerCallTaken: totalCallsTaken > 0 ? totalMRR / totalCallsTaken : 0,
     mrrPerAudit: totalAccountsAudited > 0 ? totalMRR / totalAccountsAudited : 0,
@@ -114,6 +119,7 @@ function calculateQuarterlySummary(monthlySummaries: MonthlySummary[], quarter: 
     totalClosed,
     proposalRate: calculateProposalRate(totalAccountsAudited, totalProposals),
     closeRate: calculateCloseRate(totalProposals, totalClosed),
+    marketingCloseRate: calculateMarketingCloseRate(totalCallsScheduled, totalClosed),
     totalMRR,
     mrrPerCallTaken: totalCallsTaken > 0 ? totalMRR / totalCallsTaken : 0,
     mrrPerAudit: totalAccountsAudited > 0 ? totalMRR / totalAccountsAudited : 0,
@@ -139,6 +145,7 @@ export async function GET() {
       const weeklyData: WeeklyData[] = rep.entries.map((entry) => {
         const showUpRate = calculateShowUpRate(entry.introCallsScheduled, entry.introCallsTaken);
         const closeRate = calculateCloseRate(entry.proposalsPitched, entry.dealsClosed);
+        const marketingCloseRate = calculateMarketingCloseRate(entry.introCallsScheduled, entry.dealsClosed);
         const proposalRate = calculateProposalRate(entry.accountsAudited, entry.proposalsPitched);
         const acceptanceRate = entry.introCallsTaken > 0
           ? (entry.accountsAudited / entry.introCallsTaken) * 100
@@ -157,6 +164,7 @@ export async function GET() {
           dealsClosed: entry.dealsClosed,
           proposalRate,
           closeRate,
+          marketingCloseRate,
           thisMonthMRR: entry.mrr,
           mrrPerCallTaken: entry.introCallsTaken > 0 ? entry.mrr / entry.introCallsTaken : 0,
           mrrPerAudit: entry.accountsAudited > 0 ? entry.mrr / entry.accountsAudited : 0,

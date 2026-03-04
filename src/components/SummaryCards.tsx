@@ -81,11 +81,19 @@ export function SummaryCards({ summary, title, previousSummary }: SummaryCardsPr
       color: 'bg-green-50 border-green-200',
     },
     {
-      label: 'Close Rate',
+      label: 'Sales Close Rate',
       value: summary.closeRate,
       prevValue: previousSummary?.closeRate,
       format: 'percent',
       color: summary.closeRate >= 50 ? 'bg-green-50 border-green-200' : summary.closeRate >= 30 ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200',
+      isRate: true,
+    },
+    {
+      label: 'Marketing Close Rate',
+      value: summary.marketingCloseRate,
+      prevValue: previousSummary?.marketingCloseRate,
+      format: 'percent',
+      color: summary.marketingCloseRate >= 20 ? 'bg-green-50 border-green-200' : summary.marketingCloseRate >= 10 ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200',
       isRate: true,
     },
     {

@@ -57,7 +57,10 @@ export function QuarterlySummaryTable({ summaries, repName, selectedQuarter }: Q
               Closed
             </th>
             <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Close Rate
+              Sales Close Rate
+            </th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Marketing Close Rate
             </th>
             <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
               Total MRR
@@ -116,6 +119,19 @@ export function QuarterlySummaryTable({ summaries, repName, selectedQuarter }: Q
                   }
                 >
                   {formatPercent(quarter.closeRate)}
+                </span>
+              </td>
+              <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
+                <span
+                  className={
+                    quarter.marketingCloseRate >= 20
+                      ? 'text-green-600'
+                      : quarter.marketingCloseRate >= 10
+                      ? 'text-yellow-600'
+                      : 'text-red-600'
+                  }
+                >
+                  {formatPercent(quarter.marketingCloseRate)}
                 </span>
               </td>
               <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-center font-bold">

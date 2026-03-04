@@ -330,13 +330,13 @@ model FollowUpSequence {
   // Contact phone for WhatsApp/Text/Call
   contactPhone    String?  // Phone number if available
 
-  // Multi-channel sequence tracking (5 steps):
-  // Step 1: Email (AI-generated from transcript)
-  step1Due        DateTime?  // Due date for first email
+  // Multi-channel sequence tracking (6 steps):
+  // Step 1: Email 1 (AI-generated from transcript)
+  step1Due        DateTime?
   step1Done       Boolean  @default(false)
   step1Content    String?  @db.Text  // AI-generated email content
 
-  // Step 2: WhatsApp/Text message (Day +1)
+  // Step 2: WhatsApp message (Day +1)
   step2Due        DateTime?
   step2Done       Boolean  @default(false)
 
@@ -344,14 +344,25 @@ model FollowUpSequence {
   step3Due        DateTime?
   step3Done       Boolean  @default(false)
 
-  // Step 4: Phone call (Day +5)
+  // Step 4: Text message (Day +5)
   step4Due        DateTime?
   step4Done       Boolean  @default(false)
-  step4Notes      String?  @db.Text  // Notes from the call
 
-  // Step 5: Email 3 (Day +7)
+  // Step 5: Phone call (Day +7)
   step5Due        DateTime?
   step5Done       Boolean  @default(false)
+  step5Notes      String?  @db.Text  // Notes from the call
+
+  // Vapi voice call tracking (Step 5 automation)
+  vapiCallId      String?   // Vapi call ID returned when outbound call is created
+  vapiCallStatus  String?   // "calling", "in_progress", "completed", "failed", "no_answer", "voicemail"
+
+  // Step 6: Email 3 (Day +9)
+  step6Due        DateTime?
+  step6Done       Boolean  @default(false)
+
+  // Legacy field (kept for backwards compat)
+  step4Notes      String?  @db.Text
 
   // Legacy fields for backwards compatibility (will migrate data)
   email1Due       DateTime?
@@ -364,8 +375,18 @@ model FollowUpSequence {
   email3Due       DateTime?
   email3Sent      Boolean  @default(false)
 
-  // Next cooldown (after all 5 steps complete)
+  // Next cooldown (after all 6 steps complete)
   nextCooldownEnd DateTime?  // When the next cycle starts
+
+  // Gmail automation fields
+  gmailThreadId     String?   // Gmail thread ID to keep all emails in one conversation
+  gmailMessageId    String?   // Message-ID header of first email (for In-Reply-To)
+  lastGmailMsgId    String?   // Most recent Message-ID in the thread
+  emailSubject      String?   // Subject line used for the thread
+  automationEnabled Boolean   @default(true)  // Per-sequence automation toggle
+  replyDetected     Boolean   @default(false)
+  replyDetectedAt   DateTime?
+  replySnippet      String?   @db.Text  // Preview of the reply
 
   // Notes
   notes           String?  @db.Text
@@ -373,6 +394,32 @@ model FollowUpSequence {
   // Timestamps
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  // Relations
+  automationLogs  AutomationLog[]
+}
+
+// Gmail OAuth2 Configuration (singleton - one connected account)
+model GmailConfig {
+  id              String   @id @default("singleton")
+  emailAddress    String
+  accessToken     String   @db.Text
+  refreshToken    String   @db.Text
+  tokenExpiresAt  DateTime
+  connectedAt     DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Automation Audit Log
+model AutomationLog {
+  id          String   @id @default(cuid())
+  sequenceId  String?
+  sequence    FollowUpSequence? @relation(fields: [sequenceId], references: [id], onDelete: SetNull)
+  actionType  String   // "email_sent", "email_send_failed", "reply_detected", "token_refreshed", "ai_email_generated"
+  stepNumber  Int?     // Which step (1, 3, or 5) for email actions
+  details     String?  @db.Text  // JSON with extra info
+  success     Boolean  @default(true)
+  createdAt   DateTime @default(now())
 }
 
 // Change History Log for undo functionality
@@ -756,6 +803,10 @@ model ClientPortfolio {
   // Follow-up sequence tracking (loyalty emails)
   fupSequenceActive Boolean  @default(true)  // Is the 12-email loyalty sequence working
 
+  // Upsell potential flags
+  upsellLandingPage  Boolean  @default(false)
+  upsellFacebookMgmt Boolean  @default(false)
+
   // Notes
   notes             String?  @db.Text
 
@@ -765,6 +816,7 @@ model ClientPortfolio {
 
   // Relations
   feeHistory        ClientFeeEntry[]
+  upsellCheckIns    UpsellCheckIn[]
 }
 
 // Monthly fee tracking for each client
@@ -789,4 +841,23 @@ model ClientFeeEntry {
 
   // Unique constraint - one entry per client per month
   @@unique([clientId, monthStartDate])
+}
+
+// Monthly analyst check-in for upsell readiness
+model UpsellCheckIn {
+  id              String   @id @default(cuid())
+
+  // Link to client
+  clientId        String
+  client          ClientPortfolio @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  // Check-in data
+  checkInDate     DateTime @default(now())
+  analystName     String
+  status          String   // "ready", "not_yet", "maybe"
+  notes           String?  @db.Text
+
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }

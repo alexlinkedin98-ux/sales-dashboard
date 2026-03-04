@@ -55,6 +55,8 @@ export async function PUT(
     if (clientName !== undefined) updateData.clientName = clientName;
     if (clientType !== undefined) updateData.clientType = clientType;
     if (fupSequenceActive !== undefined) updateData.fupSequenceActive = fupSequenceActive;
+    if (body.upsellLandingPage !== undefined) updateData.upsellLandingPage = body.upsellLandingPage;
+    if (body.upsellFacebookMgmt !== undefined) updateData.upsellFacebookMgmt = body.upsellFacebookMgmt;
     if (notes !== undefined) updateData.notes = notes;
 
     // Handle date acquired update

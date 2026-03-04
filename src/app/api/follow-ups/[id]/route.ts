@@ -49,20 +49,18 @@ export async function PATCH(
 
     const updateData: Record<string, unknown> = {};
 
-    // Handle marking steps as done (new 5-step sequence)
+    // Handle marking steps as done (6-step sequence)
     // Step 1: Email 1 (AI-generated)
     if (body.markStep1Done && !existing.step1Done) {
       updateData.step1Done = true;
-      // Set step 2 due date (1 day from now) - WhatsApp/Text
       const step2Due = new Date();
       step2Due.setDate(step2Due.getDate() + 1);
       updateData.step2Due = step2Due;
     }
 
-    // Step 2: WhatsApp/Text
+    // Step 2: WhatsApp
     if (body.markStep2Done && !existing.step2Done) {
       updateData.step2Done = true;
-      // Set step 3 due date (2 days from now) - Email 2
       const step3Due = new Date();
       step3Due.setDate(step3Due.getDate() + 2);
       updateData.step3Due = step3Due;
@@ -71,28 +69,35 @@ export async function PATCH(
     // Step 3: Email 2
     if (body.markStep3Done && !existing.step3Done) {
       updateData.step3Done = true;
-      // Set step 4 due date (2 days from now) - Phone call
       const step4Due = new Date();
       step4Due.setDate(step4Due.getDate() + 2);
       updateData.step4Due = step4Due;
     }
 
-    // Step 4: Phone call
+    // Step 4: Text
     if (body.markStep4Done && !existing.step4Done) {
       updateData.step4Done = true;
-      if (body.step4Notes) {
-        updateData.step4Notes = body.step4Notes;
-      }
-      // Set step 5 due date (2 days from now) - Email 3
       const step5Due = new Date();
       step5Due.setDate(step5Due.getDate() + 2);
       updateData.step5Due = step5Due;
     }
 
-    // Step 5: Email 3 - completes the cycle
+    // Step 5: Phone call (manual or Vapi)
     if (body.markStep5Done && !existing.step5Done) {
       updateData.step5Done = true;
-      // Set up next cooldown cycle (3 months)
+      if (body.step5Notes) {
+        updateData.step5Notes = body.step5Notes;
+      }
+      const step6Due = new Date();
+      step6Due.setDate(step6Due.getDate() + 2);
+      updateData.step6Due = step6Due;
+      // Clear Vapi state if manually marking done
+      updateData.vapiCallStatus = 'completed';
+    }
+
+    // Step 6: Email 3 - completes the cycle
+    if (body.markStep6Done && !existing.step6Done) {
+      updateData.step6Done = true;
       const nextCooldownEnd = new Date();
       nextCooldownEnd.setMonth(nextCooldownEnd.getMonth() + 3);
       updateData.nextCooldownEnd = nextCooldownEnd;
@@ -105,43 +110,28 @@ export async function PATCH(
       updateData.step3Done = false;
       updateData.step4Done = false;
       updateData.step5Done = false;
+      updateData.step6Done = false;
       updateData.step1Content = null;
-      updateData.step4Notes = null;
+      updateData.step5Notes = null;
+      updateData.vapiCallId = null;
+      updateData.vapiCallStatus = null;
       updateData.step1Due = nextCooldownEnd;
       updateData.step2Due = null;
       updateData.step3Due = null;
       updateData.step4Due = null;
       updateData.step5Due = null;
+      updateData.step6Due = null;
     }
 
-    // Handle UNDO - marking steps as NOT done (go back)
-    if (body.undoStep1) {
-      updateData.step1Done = false;
-      // Clear subsequent steps' due dates since we're going back
-      updateData.step2Due = null;
-    }
+    // Handle UNDO
+    if (body.undoStep1) { updateData.step1Done = false; updateData.step2Due = null; }
+    if (body.undoStep2) { updateData.step2Done = false; updateData.step3Due = null; }
+    if (body.undoStep3) { updateData.step3Done = false; updateData.step4Due = null; }
+    if (body.undoStep4) { updateData.step4Done = false; updateData.step5Due = null; }
+    if (body.undoStep5) { updateData.step5Done = false; updateData.step6Due = null; updateData.vapiCallId = null; updateData.vapiCallStatus = null; updateData.step5Notes = null; }
+    if (body.undoStep6) { updateData.step6Done = false; }
 
-    if (body.undoStep2) {
-      updateData.step2Done = false;
-      updateData.step3Due = null;
-    }
-
-    if (body.undoStep3) {
-      updateData.step3Done = false;
-      updateData.step4Due = null;
-    }
-
-    if (body.undoStep4) {
-      updateData.step4Done = false;
-      updateData.step5Due = null;
-      // Optionally keep the call notes for reference
-    }
-
-    if (body.undoStep5) {
-      updateData.step5Done = false;
-    }
-
-    // Handle RESET - move sequence back to beginning (for testing or restarting)
+    // Handle RESET
     if (body.resetSequence) {
       const now = new Date();
       updateData.status = 'active';
@@ -150,20 +140,22 @@ export async function PATCH(
       updateData.step3Done = false;
       updateData.step4Done = false;
       updateData.step5Done = false;
+      updateData.step6Done = false;
       updateData.step1Due = now;
       updateData.step2Due = null;
       updateData.step3Due = null;
       updateData.step4Due = null;
       updateData.step5Due = null;
-      // Keep the content but reset everything else
-      // Reset legacy fields too
+      updateData.step6Due = null;
+      updateData.vapiCallId = null;
+      updateData.vapiCallStatus = null;
       updateData.email1Sent = false;
       updateData.email2Sent = false;
       updateData.email3Sent = false;
       updateData.email1Due = now;
       updateData.email2Due = null;
       updateData.email3Due = null;
-      updateData.cooldownEndDate = now; // Set cooldown to now so it's active
+      updateData.cooldownEndDate = now;
     }
 
     // Legacy support: Handle old email markers (map to new steps)
@@ -182,6 +174,9 @@ export async function PATCH(
     if (body.step4Notes !== undefined) {
       updateData.step4Notes = body.step4Notes;
     }
+    if (body.step5Notes !== undefined) {
+      updateData.step5Notes = body.step5Notes;
+    }
     if (body.contactEmail !== undefined) {
       updateData.contactEmail = body.contactEmail;
     }
@@ -193,6 +188,9 @@ export async function PATCH(
     }
     if (body.notes !== undefined) {
       updateData.notes = body.notes;
+    }
+    if (body.automationEnabled !== undefined) {
+      updateData.automationEnabled = body.automationEnabled;
     }
     if (body.status !== undefined) {
       updateData.status = body.status;

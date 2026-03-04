@@ -31,33 +31,36 @@ export async function POST(
     const transcript = callAnalysis.transcript;
 
     // Build the prompt for email generation
-    const prompt = `You are a professional sales representative writing a follow-up email to a prospect you spoke with about 3 months ago.
+    const firstName = sequence.contactName.split(' ')[0];
+    const prompt = `Write a very short, casual follow-up email to someone you had a call with about 3 months ago.
 
-Contact Name: ${sequence.contactName}
-Original Call: ${callAnalysis.callLabel}
-Call Date: ${new Date(callAnalysis.callDate).toLocaleDateString()}
-Sales Rep: ${callAnalysis.salesRep.name}
+Contact: ${firstName}
+What you discussed: ${callAnalysis.callLabel}
+Call date: ${new Date(callAnalysis.callDate).toLocaleDateString()}
 
-${transcript ? `Call Transcript/Notes:
-${transcript}` : 'No transcript available - generate a generic but warm check-in email.'}
-
-Write a brief, professional follow-up email that:
-1. References something specific from your conversation (if transcript available)
-2. Checks in on their situation
-3. Offers value or relevant insight
-4. Has a soft call-to-action (e.g., "Would love to reconnect if timing is better now")
+${transcript ? `Context from the call:\n${transcript}` : ''}
 
 The email should be:
-- Friendly but professional
-- 3-5 short paragraphs max
-- Not pushy or salesy
-- Personalized based on the conversation
+- 3-4 lines MAX. Super short.
+- Casual and human, like texting a friend
+- No formal language, no "I hope this email finds you well"
+- Reference what you talked about briefly (e.g. "google ads", "your campaigns", etc.)
+- End with a simple check-in question
+- No signature, no sign-off like "Best regards"
+- Lowercase is fine, keep it natural
 
-Write ONLY the email body (no subject line, no signature). Start with "Hi ${sequence.contactName.split(' ')[0]}," or similar greeting.`;
+Example tone:
+"hi ${firstName}
+
+hope you're doing well
+
+we chatted about your google ads a few months back — how are things going on that front?"
+
+Write ONLY the email body. Start with "hi ${firstName}" (lowercase).`;
 
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 500,
+      max_tokens: 200,
       messages: [
         {
           role: 'user',

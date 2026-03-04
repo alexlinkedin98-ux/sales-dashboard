@@ -63,7 +63,7 @@ export function TrendChart({ data, dataKey, title, color, format = 'number' }: T
 
 interface ComparisonChartProps {
   reps: SalesRepData[];
-  dataKey: 'totalMRR' | 'totalClosed' | 'closeRate' | 'totalCallsTaken' | 'totalCallsScheduled' | 'totalAccountsAudited' | 'totalProposals' | 'showUpRate' | 'acceptanceQualityRate' | 'proposalRate' | 'mrrPerCallTaken' | 'mrrPerAudit' | 'mrrPerSales';
+  dataKey: 'totalMRR' | 'totalClosed' | 'closeRate' | 'marketingCloseRate' | 'totalCallsTaken' | 'totalCallsScheduled' | 'totalAccountsAudited' | 'totalProposals' | 'showUpRate' | 'acceptanceQualityRate' | 'proposalRate' | 'mrrPerCallTaken' | 'mrrPerAudit' | 'mrrPerSales';
   title: string;
   format?: 'number' | 'currency' | 'percent';
 }

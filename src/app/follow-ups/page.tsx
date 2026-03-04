@@ -15,9 +15,9 @@ interface FollowUpSequence {
   contactPhone: string | null;
   sequenceStartDate: string;
   cooldownEndDate: string;
-  status: 'cooling' | 'active' | 'completed' | 'won';
+  status: 'cooling' | 'active' | 'completed' | 'won' | 'replied';
   currentCycle: number;
-  // New 5-step fields
+  // 6-step fields
   step1Due: string | null;
   step1Done: boolean;
   step1Content: string | null;
@@ -30,6 +30,9 @@ interface FollowUpSequence {
   step4Notes: string | null;
   step5Due: string | null;
   step5Done: boolean;
+  step5Notes: string | null;
+  step6Due: string | null;
+  step6Done: boolean;
   // Legacy fields (for backwards compatibility)
   email1Due: string | null;
   email1Sent: boolean;
@@ -40,6 +43,12 @@ interface FollowUpSequence {
   email3Sent: boolean;
   nextCooldownEnd: string | null;
   notes: string | null;
+  // Gmail automation fields
+  automationEnabled: boolean;
+  gmailThreadId: string | null;
+  replyDetected: boolean;
+  replyDetectedAt: string | null;
+  replySnippet: string | null;
   callAnalysis: {
     id: string;
     callLabel: string;
@@ -53,7 +62,24 @@ interface FollowUpSequence {
   };
 }
 
-type ViewMode = 'active' | 'cooling' | 'won' | 'all';
+type ViewMode = 'active' | 'cooling' | 'won' | 'replied' | 'all';
+
+interface AutomationLogEntry {
+  id: string;
+  sequenceId: string | null;
+  actionType: string;
+  stepNumber: number | null;
+  details: string | null;
+  success: boolean;
+  createdAt: string;
+  sequence: { contactName: string } | null;
+}
+
+interface GmailStatus {
+  connected: boolean;
+  email?: string;
+  tokenExpired?: boolean;
+}
 type StatsTimeFrame = 'all-time' | 'this-month' | 'last-month' | 'this-quarter' | 'last-quarter' | 'this-year';
 
 interface SalesRep {
@@ -61,13 +87,14 @@ interface SalesRep {
   name: string;
 }
 
-// Step definitions for the 5-step sequence
+// Step definitions for the 6-step sequence
 const STEPS = [
   { num: 1, type: 'email', label: 'Email 1', icon: 'envelope', description: 'AI-generated personalized email' },
-  { num: 2, type: 'whatsapp', label: 'WhatsApp/Text', icon: 'chat', description: 'Quick text check-in' },
+  { num: 2, type: 'whatsapp', label: 'WhatsApp', icon: 'chat', description: 'WhatsApp message' },
   { num: 3, type: 'email', label: 'Email 2', icon: 'envelope', description: 'Follow-up email' },
-  { num: 4, type: 'call', label: 'Phone Call', icon: 'phone', description: 'Direct phone call' },
-  { num: 5, type: 'email', label: 'Email 3', icon: 'envelope', description: 'Final email of cycle' },
+  { num: 4, type: 'text', label: 'Text', icon: 'chat', description: 'Text message' },
+  { num: 5, type: 'call', label: 'Call', icon: 'phone', description: 'Direct phone call' },
+  { num: 6, type: 'email', label: 'Email 3', icon: 'envelope', description: 'Final email of cycle' },
 ];
 
 export default function WarmFollowUpsPage() {
@@ -85,10 +112,27 @@ export default function WarmFollowUpsPage() {
   const [callNotes, setCallNotes] = useState('');
   const [showStats, setShowStats] = useState(false);
   const [statsTimeFrame, setStatsTimeFrame] = useState<StatsTimeFrame>('all-time');
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [addForm, setAddForm] = useState({ salesRepId: '', contactName: '', contactEmail: '', contactPhone: '', notes: '', crmLink: '', transcript: '' });
+  const [submitting, setSubmitting] = useState(false);
+  // Gmail automation state
+  const [gmailStatus, setGmailStatus] = useState<GmailStatus>({ connected: false });
+  const [automationLogs, setAutomationLogs] = useState<AutomationLogEntry[]>([]);
+  const [showActivityFeed, setShowActivityFeed] = useState(false);
 
   useEffect(() => {
     fetchSequences();
     fetchReps();
+    fetchGmailStatus();
+  }, []);
+
+  // Check for Gmail OAuth callback
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('gmail') === 'connected') {
+      fetchGmailStatus();
+      window.history.replaceState({}, '', '/follow-ups');
+    }
   }, []);
 
   const fetchReps = async () => {
@@ -132,6 +176,68 @@ export default function WarmFollowUpsPage() {
     }
   };
 
+  // Gmail automation functions
+  const fetchGmailStatus = async () => {
+    try {
+      const response = await fetch('/api/gmail/status');
+      if (response.ok) {
+        const data = await response.json();
+        setGmailStatus(data);
+      }
+    } catch (error) {
+      console.error('Error fetching Gmail status:', error);
+    }
+  };
+
+  const connectGmail = async () => {
+    try {
+      const response = await fetch('/api/gmail/auth');
+      if (response.ok) {
+        const data = await response.json();
+        window.location.href = data.authUrl;
+      }
+    } catch (error) {
+      console.error('Error connecting Gmail:', error);
+    }
+  };
+
+  const disconnectGmail = async () => {
+    if (!confirm('Disconnect Gmail? Automation will stop sending emails.')) return;
+    try {
+      await fetch('/api/gmail/disconnect', { method: 'POST' });
+      setGmailStatus({ connected: false });
+    } catch (error) {
+      console.error('Error disconnecting Gmail:', error);
+    }
+  };
+
+  const toggleAutomation = async (sequenceId: string, enabled: boolean) => {
+    try {
+      const response = await fetch(`/api/follow-ups/${sequenceId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ automationEnabled: enabled }),
+      });
+      if (response.ok) {
+        setSequences(prev => prev.map(s => s.id === sequenceId ? { ...s, automationEnabled: enabled } : s));
+      }
+    } catch (error) {
+      console.error('Error toggling automation:', error);
+    }
+  };
+
+  const fetchAutomationLogs = async () => {
+    try {
+      const response = await fetch('/api/automation/logs?limit=30');
+      if (response.ok) {
+        const data = await response.json();
+        setAutomationLogs(data);
+      }
+    } catch (error) {
+      console.error('Error fetching automation logs:', error);
+    }
+  };
+
   const generateEmail = async (sequenceId: string) => {
     setGeneratingEmail(sequenceId);
     try {
@@ -154,12 +260,12 @@ export default function WarmFollowUpsPage() {
     }
   };
 
-  const markStepDone = async (sequenceId: string, stepNumber: 1 | 2 | 3 | 4 | 5, notes?: string) => {
+  const markStepDone = async (sequenceId: string, stepNumber: 1 | 2 | 3 | 4 | 5 | 6, notes?: string) => {
     setUpdatingSequence(sequenceId);
     try {
       const body: Record<string, unknown> = { [`markStep${stepNumber}Done`]: true };
-      if (stepNumber === 4 && notes) {
-        body.step4Notes = notes;
+      if (stepNumber === 5 && notes) {
+        body.step5Notes = notes;
       }
       const response = await fetch(`/api/follow-ups/${sequenceId}`, {
         method: 'PATCH',
@@ -177,7 +283,7 @@ export default function WarmFollowUpsPage() {
     }
   };
 
-  const undoStep = async (sequenceId: string, stepNumber: 1 | 2 | 3 | 4 | 5) => {
+  const undoStep = async (sequenceId: string, stepNumber: 1 | 2 | 3 | 4 | 5 | 6) => {
     if (!confirm(`Undo step ${stepNumber}? This will mark it as not completed.`)) return;
 
     setUpdatingSequence(sequenceId);
@@ -285,6 +391,37 @@ export default function WarmFollowUpsPage() {
     }
   };
 
+  const handleAddFollowUp = async () => {
+    if (!addForm.salesRepId || !addForm.contactName.trim()) return;
+
+    setSubmitting(true);
+    try {
+      const response = await fetch('/api/follow-ups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          salesRepId: addForm.salesRepId,
+          contactName: addForm.contactName.trim(),
+          contactEmail: addForm.contactEmail.trim() || null,
+          contactPhone: addForm.contactPhone.trim() || null,
+          notes: addForm.notes.trim() || null,
+          crmLink: addForm.crmLink.trim() || null,
+          transcript: addForm.transcript.trim() || null,
+        }),
+      });
+      if (response.ok) {
+        setShowAddForm(false);
+        setAddForm({ salesRepId: '', contactName: '', contactEmail: '', contactPhone: '', notes: '', crmLink: '', transcript: '' });
+        fetchSequences();
+        setViewMode('active');
+      }
+    } catch (error) {
+      console.error('Error adding follow-up:', error);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   // First filter by sales rep
   const repFilteredSequences = selectedRepId === 'all'
     ? sequences
@@ -296,6 +433,7 @@ export default function WarmFollowUpsPage() {
     if (viewMode === 'active') return seq.status === 'active';
     if (viewMode === 'cooling') return seq.status === 'cooling';
     if (viewMode === 'won') return seq.status === 'won';
+    if (viewMode === 'replied') return seq.status === 'replied';
     return true;
   });
 
@@ -303,6 +441,7 @@ export default function WarmFollowUpsPage() {
   const activeCount = repFilteredSequences.filter(s => s.status === 'active').length;
   const coolingCount = repFilteredSequences.filter(s => s.status === 'cooling').length;
   const wonCount = repFilteredSequences.filter(s => s.status === 'won').length;
+  const repliedCount = repFilteredSequences.filter(s => s.status === 'replied').length;
 
   // Get start date for stats time frame filter
   const getStatsStartDate = (): Date | null => {
@@ -370,50 +509,40 @@ export default function WarmFollowUpsPage() {
     seqs.forEach(seq => {
       if (seq.status === 'won' || seq.status === 'cooling') {
         // For cooling/won, count what was completed
-        if (seq.step1Done) emailsSent++;
-        if (seq.step2Done) textsSent++;
-        if (seq.step3Done) emailsSent++;
-        if (seq.step4Done) callsMade++;
-        if (seq.step5Done) emailsSent++;
+        if (seq.step1Done) emailsSent++;   // Email 1
+        if (seq.step2Done) textsSent++;    // WhatsApp
+        if (seq.step3Done) emailsSent++;   // Email 2
+        if (seq.step4Done) textsSent++;    // Text
+        if (seq.step5Done) callsMade++;    // Call
+        if (seq.step6Done) emailsSent++;   // Email 3
       } else if (seq.status === 'active') {
         // Count completed steps
         if (seq.step1Done) emailsSent++;
         if (seq.step2Done) textsSent++;
         if (seq.step3Done) emailsSent++;
-        if (seq.step4Done) callsMade++;
-        if (seq.step5Done) emailsSent++;
+        if (seq.step4Done) textsSent++;
+        if (seq.step5Done) callsMade++;
+        if (seq.step6Done) emailsSent++;
 
-        // Count pending and overdue
+        // Count pending and overdue for current step only
         if (!seq.step1Done) {
-          if (seq.step1Due && isPast(new Date(seq.step1Due))) {
-            overdueEmails++;
-          } else {
-            pendingEmails++;
-          }
+          if (seq.step1Due && isPast(new Date(seq.step1Due))) overdueEmails++;
+          else pendingEmails++;
         } else if (!seq.step2Done) {
-          if (seq.step2Due && isPast(new Date(seq.step2Due))) {
-            overdueTexts++;
-          } else {
-            pendingTexts++;
-          }
+          if (seq.step2Due && isPast(new Date(seq.step2Due))) overdueTexts++;
+          else pendingTexts++;
         } else if (!seq.step3Done) {
-          if (seq.step3Due && isPast(new Date(seq.step3Due))) {
-            overdueEmails++;
-          } else {
-            pendingEmails++;
-          }
+          if (seq.step3Due && isPast(new Date(seq.step3Due))) overdueEmails++;
+          else pendingEmails++;
         } else if (!seq.step4Done) {
-          if (seq.step4Due && isPast(new Date(seq.step4Due))) {
-            overdueCalls++;
-          } else {
-            pendingCalls++;
-          }
+          if (seq.step4Due && isPast(new Date(seq.step4Due))) overdueTexts++;
+          else pendingTexts++;
         } else if (!seq.step5Done) {
-          if (seq.step5Due && isPast(new Date(seq.step5Due))) {
-            overdueEmails++;
-          } else {
-            pendingEmails++;
-          }
+          if (seq.step5Due && isPast(new Date(seq.step5Due))) overdueCalls++;
+          else pendingCalls++;
+        } else if (!seq.step6Done) {
+          if (seq.step6Due && isPast(new Date(seq.step6Due))) overdueEmails++;
+          else pendingEmails++;
         }
       }
     });
@@ -456,7 +585,8 @@ export default function WarmFollowUpsPage() {
     if (!seq.step3Done) return 3;
     if (!seq.step4Done) return 4;
     if (!seq.step5Done) return 5;
-    return 6; // All done
+    if (!seq.step6Done) return 6;
+    return 7; // All done
   };
 
   const getStepDueDate = (seq: FollowUpSequence, stepNum: number): Date | null => {
@@ -466,6 +596,7 @@ export default function WarmFollowUpsPage() {
       3: seq.step3Due,
       4: seq.step4Due,
       5: seq.step5Due,
+      6: seq.step6Due,
     };
     return dueDates[stepNum] ? new Date(dueDates[stepNum]!) : null;
   };
@@ -477,6 +608,7 @@ export default function WarmFollowUpsPage() {
       3: seq.step3Done,
       4: seq.step4Done,
       5: seq.step5Done,
+      6: seq.step6Done,
     };
     return done[stepNum] || false;
   };
@@ -495,7 +627,7 @@ export default function WarmFollowUpsPage() {
     }
 
     const currentStep = getCurrentStep(seq);
-    if (currentStep <= 5) {
+    if (currentStep <= 6) {
       const step = STEPS[currentStep - 1];
       const due = getStepDueDate(seq, currentStep);
       return {
@@ -526,15 +658,36 @@ export default function WarmFollowUpsPage() {
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
+            <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-gray-900">Warm Follow-ups</h1>
-              <p className="text-sm text-gray-500">
-                Multi-channel nurturing: Email &rarr; WhatsApp &rarr; Email &rarr; Call &rarr; Email
-              </p>
+              {/* Gmail Connection - inline badge */}
+              {gmailStatus.connected ? (
+                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-green-50 border border-green-200 rounded-full">
+                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />
+                  <span className="text-xs font-medium text-green-700">{gmailStatus.email}</span>
+                  <button onClick={disconnectGmail} className="text-xs text-gray-400 hover:text-red-500 ml-0.5" title="Disconnect Gmail">&times;</button>
+                </div>
+              ) : (
+                <button
+                  onClick={connectGmail}
+                  className="px-2.5 py-1 bg-red-50 border border-red-200 text-red-700 text-xs font-medium rounded-full hover:bg-red-100 flex items-center gap-1"
+                >
+                  <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M20 18h-2V9.25L12 13 6 9.25V18H4V6h1.2l6.8 4.25L18.8 6H20m0-2H4c-1.11 0-2 .89-2 2v12a2 2 0 002 2h16a2 2 0 002-2V6a2 2 0 00-2-2z"/></svg>
+                  Connect Gmail
+                </button>
+              )}
             </div>
             <div className="flex gap-2 items-center">
+              <button
+                onClick={() => setShowAddForm(true)}
+                className="px-4 py-2 bg-rose-600 text-white text-sm font-medium rounded-lg hover:bg-rose-700 flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Add Follow-up
+              </button>
               <Navigation currentPage="follow-ups" />
-              <div className="w-px h-6 bg-gray-300 mx-1" />
               <ChangeHistory entityType="FollowUpSequence" onUndo={fetchSequences} />
             </div>
           </div>
@@ -589,6 +742,18 @@ export default function WarmFollowUpsPage() {
             >
               Won ({wonCount})
             </button>
+            {repliedCount > 0 && (
+              <button
+                onClick={() => setViewMode('replied')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  viewMode === 'replied'
+                    ? 'bg-amber-600 text-white'
+                    : 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200'
+                }`}
+              >
+                Replied ({repliedCount})
+              </button>
+            )}
             <button
               onClick={() => setViewMode('all')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -619,9 +784,65 @@ export default function WarmFollowUpsPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </button>
+
+            {/* Activity Feed Toggle */}
+            {gmailStatus.connected && (
+              <button
+                onClick={() => { setShowActivityFeed(!showActivityFeed); if (!showActivityFeed) fetchAutomationLogs(); }}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                  showActivityFeed
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+                }`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Activity
+                <svg className={`w-4 h-4 transition-transform ${showActivityFeed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Activity Feed Panel */}
+      {showActivityFeed && (
+        <div className="bg-indigo-50 border-b border-indigo-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <h3 className="text-sm font-semibold text-indigo-900 mb-3">Automation Activity</h3>
+            {automationLogs.length === 0 ? (
+              <p className="text-sm text-indigo-600">No automation activity yet.</p>
+            ) : (
+              <div className="space-y-1.5 max-h-60 overflow-y-auto">
+                {automationLogs.map(log => (
+                  <div key={log.id} className={`flex items-center gap-3 text-sm px-3 py-1.5 rounded ${log.success ? 'bg-white' : 'bg-red-50'}`}>
+                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${log.success ? 'bg-green-500' : 'bg-red-500'}`} />
+                    <span className="text-gray-700">
+                      {log.actionType === 'email_sent' && `Sent Email ${log.stepNumber} to ${log.sequence?.contactName || 'Unknown'}`}
+                      {log.actionType === 'email_send_failed' && `Failed to send Email ${log.stepNumber} to ${log.sequence?.contactName || 'Unknown'}`}
+                      {log.actionType === 'whatsapp_sent' && `Sent WhatsApp to ${log.sequence?.contactName || 'Unknown'}`}
+                      {log.actionType === 'whatsapp_send_failed' && `Failed to send WhatsApp to ${log.sequence?.contactName || 'Unknown'}`}
+                      {log.actionType === 'text_sent' && `Sent Text to ${log.sequence?.contactName || 'Unknown'}`}
+                      {log.actionType === 'text_send_failed' && `Failed to send Text to ${log.sequence?.contactName || 'Unknown'}`}
+                      {log.actionType === 'reply_detected' && `Reply detected from ${log.sequence?.contactName || 'Unknown'}`}
+                      {log.actionType === 'token_refreshed' && 'Gmail token refreshed'}
+                      {log.actionType === 'ai_email_generated' && `AI email generated for ${log.sequence?.contactName || 'Unknown'}`}
+                      {log.actionType === 'gmail_connected' && 'Gmail connected'}
+                      {log.actionType === 'gmail_disconnected' && 'Gmail disconnected'}
+                    </span>
+                    <span className="text-xs text-gray-400 ml-auto flex-shrink-0">
+                      {formatDistanceToNow(new Date(log.createdAt), { addSuffix: true })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Stats Dashboard Panel */}
       {showStats && (
@@ -826,12 +1047,20 @@ export default function WarmFollowUpsPage() {
                             seq.status === 'active' ? 'bg-rose-100 text-rose-800' :
                             seq.status === 'cooling' ? 'bg-blue-100 text-blue-800' :
                             seq.status === 'won' ? 'bg-green-100 text-green-800' :
+                            seq.status === 'replied' ? 'bg-amber-100 text-amber-800' :
                             'bg-gray-100 text-gray-800'
                           }`}>
                             {seq.status === 'active' ? 'Active' :
                              seq.status === 'cooling' ? `Cooling (Cycle ${seq.currentCycle})` :
-                             seq.status === 'won' ? 'Won' : seq.status}
+                             seq.status === 'won' ? 'Won' :
+                             seq.status === 'replied' ? 'Replied' : seq.status}
                           </span>
+                          {/* Automation indicator */}
+                          {seq.status === 'active' && gmailStatus.connected && (
+                            <span className={`px-1.5 py-0.5 text-xs rounded-full ${seq.automationEnabled ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500'}`}>
+                              {seq.automationEnabled ? 'Auto' : 'Manual'}
+                            </span>
+                          )}
                         </div>
 
                         {/* Contact details */}
@@ -929,7 +1158,21 @@ export default function WarmFollowUpsPage() {
                       </div>
 
                       {/* Quick Actions */}
-                      <div className="flex gap-2 flex-shrink-0">
+                      <div className="flex gap-2 flex-shrink-0 items-center">
+                        {/* Automation Toggle */}
+                        {gmailStatus.connected && (seq.status === 'active' || seq.status === 'replied') && (
+                          <button
+                            onClick={() => toggleAutomation(seq.id, !seq.automationEnabled)}
+                            className={`px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                              seq.automationEnabled
+                                ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+                                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                            }`}
+                            title={seq.automationEnabled ? 'Click to switch to manual' : 'Click to enable automation'}
+                          >
+                            {seq.automationEnabled ? 'Auto On' : 'Auto Off'}
+                          </button>
+                        )}
                         {seq.status !== 'won' && (
                           <button
                             onClick={() => markAsWon(seq.id)}
@@ -939,7 +1182,7 @@ export default function WarmFollowUpsPage() {
                             Won
                           </button>
                         )}
-                        {(seq.status === 'cooling' || (seq.status === 'active' && getCurrentStep(seq) > 1)) && (
+                        {(seq.status === 'cooling' || seq.status === 'replied' || (seq.status === 'active' && getCurrentStep(seq) > 1)) && (
                           <button
                             onClick={() => resetSequence(seq.id, seq.contactName)}
                             disabled={updatingSequence === seq.id}
@@ -958,7 +1201,15 @@ export default function WarmFollowUpsPage() {
                       </div>
                     </div>
 
-                    {/* 5-Step Progress Bar */}
+                    {/* Reply Snippet */}
+                    {seq.status === 'replied' && seq.replySnippet && (
+                      <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                        <p className="text-xs font-medium text-amber-800 mb-1">Reply received{seq.replyDetectedAt ? ` ${formatDistanceToNow(new Date(seq.replyDetectedAt), { addSuffix: true })}` : ''}:</p>
+                        <p className="text-sm text-amber-700 italic">&quot;{seq.replySnippet}&quot;</p>
+                      </div>
+                    )}
+
+                    {/* 6-Step Progress Bar */}
                     {seq.status === 'active' && (
                       <div className="mt-4">
                         <div className="flex items-center gap-1">
@@ -1020,6 +1271,11 @@ export default function WarmFollowUpsPage() {
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                                     </svg>
                                   )}
+                                  {step.type === 'text' && (
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                    </svg>
+                                  )}
                                   {step.type === 'call' && (
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
@@ -1033,19 +1289,18 @@ export default function WarmFollowUpsPage() {
                             );
                           })}
                         </div>
-                        <div className="flex items-center gap-1 mt-3">
+                        <div className="flex items-center gap-1 mt-1.5">
                           {STEPS.map((step, idx) => {
                             const done = isStepDone(seq, step.num);
                             const isCurrent = currentStep === step.num;
-                            const isCurrentExpanded = isExpanded && expandedStep === null;
                             return (
                               <div key={step.num} className="flex items-center flex-1">
-                                <span className={`text-xs w-10 text-center ${
-                                  done ? 'text-green-600 cursor-pointer' :
-                                  isCurrent ? 'text-rose-600 font-medium cursor-pointer' :
-                                  'text-gray-500'
+                                <span className={`text-[10px] w-10 text-center leading-tight ${
+                                  done ? 'text-green-600' :
+                                  isCurrent ? 'text-rose-600 font-semibold' :
+                                  'text-gray-400'
                                 }`}>
-                                  {done ? 'View' : isCurrent && !isCurrentExpanded ? 'Click' : step.label.split('/')[0]}
+                                  {step.label}
                                 </span>
                                 {idx < STEPS.length - 1 && <div className="flex-1" />}
                               </div>
@@ -1068,7 +1323,7 @@ export default function WarmFollowUpsPage() {
                             </h4>
                             <div className="flex gap-2">
                               <button
-                                onClick={() => undoStep(seq.id, expandedStep as 1 | 2 | 3 | 4 | 5)}
+                                onClick={() => undoStep(seq.id, expandedStep as 1 | 2 | 3 | 4 | 5 | 6)}
                                 disabled={updatingSequence === seq.id}
                                 className="px-3 py-1 bg-amber-500 text-white text-xs rounded hover:bg-amber-600 disabled:opacity-50"
                               >
@@ -1131,14 +1386,24 @@ export default function WarmFollowUpsPage() {
                             </div>
                           )}
 
-                          {/* Step 4 content - Phone call notes */}
+                          {/* Step 4 content - Text message */}
                           {expandedStep === 4 && (
                             <div>
+                              <span className="text-xs text-gray-500">Text message sent</span>
+                              <div className="mt-2 bg-white border border-gray-200 rounded-lg p-4 text-sm text-gray-600 italic">
+                                &quot;Hey {seq.contactName.split(' ')[0]}, just checking in — any thoughts?&quot;
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Step 5 content - Phone call notes */}
+                          {expandedStep === 5 && (
+                            <div>
                               <span className="text-xs text-gray-500">Phone call completed</span>
-                              {seq.step4Notes ? (
+                              {seq.step5Notes ? (
                                 <div className="mt-2 bg-white border border-gray-200 rounded-lg p-4 text-sm text-gray-700">
                                   <p className="text-xs font-medium text-gray-500 mb-1">Call Notes:</p>
-                                  {seq.step4Notes}
+                                  {seq.step5Notes}
                                 </div>
                               ) : (
                                 <p className="text-sm text-gray-500 mt-2">No notes recorded for this call.</p>
@@ -1146,8 +1411,8 @@ export default function WarmFollowUpsPage() {
                             </div>
                           )}
 
-                          {/* Step 5 content - Email 3 */}
-                          {expandedStep === 5 && (
+                          {/* Step 6 content - Email 3 */}
+                          {expandedStep === 6 && (
                             <div>
                               <div className="flex justify-between items-start mb-2">
                                 <span className="text-xs text-gray-500">Final email:</span>
@@ -1211,32 +1476,54 @@ export default function WarmFollowUpsPage() {
                             </div>
                           )}
 
-                          {/* Step 2: WhatsApp/Text */}
-                          {currentStep === 2 && (
-                            <div>
-                              <h4 className="text-sm font-medium text-gray-700 mb-3">
-                                Step 2: Send WhatsApp or Text Message
-                              </h4>
-                              <div className="bg-white border border-gray-200 rounded-lg p-4 mb-3">
-                                <p className="text-sm text-gray-700 font-medium mb-2">Suggested message:</p>
-                                <p className="text-sm text-gray-600 italic">
-                                  &quot;Hi {seq.contactName.split(' ')[0]}, just wanted to follow up on our conversation. Let me know if you have any questions!&quot;
-                                </p>
+                          {/* Step 2: WhatsApp */}
+                          {currentStep === 2 && (() => {
+                            const waFirstName = seq.contactName.split(' ')[0];
+                            const waMessage = `Hey ${waFirstName}, hope you're doing well! Just wanted to check in — how are things going?`;
+                            const waPhone = seq.contactPhone ? seq.contactPhone.replace(/[^0-9]/g, '') : '';
+                            const waLink = waPhone ? `https://wa.me/${waPhone}?text=${encodeURIComponent(waMessage)}` : '';
+                            return (
+                              <div>
+                                <h4 className="text-sm font-medium text-gray-700 mb-3">
+                                  Step 2: Send WhatsApp Message
+                                </h4>
+                                <div className="bg-white border border-gray-200 rounded-lg p-4 mb-3">
+                                  <p className="text-xs text-gray-500 mb-2">Message preview:</p>
+                                  <p className="text-sm text-gray-700">
+                                    {waMessage}
+                                  </p>
+                                </div>
+                                <div className="flex gap-2 items-center flex-wrap">
+                                  {waPhone ? (
+                                    <a
+                                      href={waLink}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center gap-2 text-sm font-medium"
+                                    >
+                                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                                      Open in WhatsApp
+                                    </a>
+                                  ) : (
+                                    <p className="text-sm text-amber-600">No phone number — add contact info to send via WhatsApp.</p>
+                                  )}
+                                  <button
+                                    onClick={() => copyToClipboard(waMessage)}
+                                    className="px-3 py-2 bg-gray-200 text-gray-700 text-sm rounded-lg hover:bg-gray-300"
+                                  >
+                                    Copy Message
+                                  </button>
+                                  <button
+                                    onClick={() => markStepDone(seq.id, 2)}
+                                    disabled={updatingSequence === seq.id}
+                                    className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 disabled:opacity-50"
+                                  >
+                                    ✓ WhatsApp Sent
+                                  </button>
+                                </div>
                               </div>
-                              {seq.contactPhone && (
-                                <p className="text-sm text-gray-500 mb-3">
-                                  Phone: <span className="font-medium">{seq.contactPhone}</span>
-                                </p>
-                              )}
-                              <button
-                                onClick={() => markStepDone(seq.id, 2)}
-                                disabled={updatingSequence === seq.id}
-                                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-                              >
-                                Mark WhatsApp/Text Sent
-                              </button>
-                            </div>
-                          )}
+                            );
+                          })()}
 
                           {/* Step 3: Email 2 */}
                           {currentStep === 3 && (
@@ -1271,11 +1558,60 @@ export default function WarmFollowUpsPage() {
                             </div>
                           )}
 
-                          {/* Step 4: Phone Call */}
-                          {currentStep === 4 && (
+                          {/* Step 4: Text */}
+                          {currentStep === 4 && (() => {
+                            const txtFirstName = seq.contactName.split(' ')[0];
+                            const txtMessage = `Hey ${txtFirstName}, just checking in — any thoughts?`;
+                            const txtPhone = seq.contactPhone ? seq.contactPhone.replace(/[^0-9+]/g, '') : '';
+                            const smsLink = txtPhone ? `sms:${txtPhone}?body=${encodeURIComponent(txtMessage)}` : '';
+                            return (
+                              <div>
+                                <h4 className="text-sm font-medium text-gray-700 mb-3">
+                                  Step 4: Send Text Message
+                                </h4>
+                                <div className="bg-white border border-gray-200 rounded-lg p-4 mb-3">
+                                  <p className="text-xs text-gray-500 mb-2">Message preview:</p>
+                                  <p className="text-sm text-gray-700">
+                                    {txtMessage}
+                                  </p>
+                                </div>
+                                <div className="flex gap-2 items-center flex-wrap">
+                                  {txtPhone ? (
+                                    <a
+                                      href={smsLink}
+                                      className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-2 text-sm font-medium"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                      </svg>
+                                      Open in Messages
+                                    </a>
+                                  ) : (
+                                    <p className="text-sm text-amber-600">No phone number — add contact info to send a text.</p>
+                                  )}
+                                  <button
+                                    onClick={() => copyToClipboard(txtMessage)}
+                                    className="px-3 py-2 bg-gray-200 text-gray-700 text-sm rounded-lg hover:bg-gray-300"
+                                  >
+                                    Copy Message
+                                  </button>
+                                  <button
+                                    onClick={() => markStepDone(seq.id, 4)}
+                                    disabled={updatingSequence === seq.id}
+                                    className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 disabled:opacity-50"
+                                  >
+                                    ✓ Text Sent
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })()}
+
+                          {/* Step 5: Phone Call */}
+                          {currentStep === 5 && (
                             <div>
                               <h4 className="text-sm font-medium text-gray-700 mb-3">
-                                Step 4: Make a Phone Call
+                                Step 5: Make a Phone Call
                               </h4>
                               {seq.contactPhone ? (
                                 <p className="text-sm text-gray-700 mb-3">
@@ -1297,7 +1633,7 @@ export default function WarmFollowUpsPage() {
                                 />
                               </div>
                               <button
-                                onClick={() => markStepDone(seq.id, 4, callNotes)}
+                                onClick={() => markStepDone(seq.id, 5, callNotes)}
                                 disabled={updatingSequence === seq.id}
                                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
                               >
@@ -1306,11 +1642,11 @@ export default function WarmFollowUpsPage() {
                             </div>
                           )}
 
-                          {/* Step 5: Email 3 */}
-                          {currentStep === 5 && (
+                          {/* Step 6: Email 3 */}
+                          {currentStep === 6 && (
                             <div>
                               <h4 className="text-sm font-medium text-gray-700 mb-3">
-                                Step 5: Send Final Email
+                                Step 6: Send Final Email
                               </h4>
                               <div className="bg-white border border-gray-200 rounded-lg p-4 mb-3">
                                 <p className="text-sm text-gray-700 font-medium mb-2">Suggested subject: Quick check-in</p>
@@ -1329,7 +1665,7 @@ export default function WarmFollowUpsPage() {
                                   Copy
                                 </button>
                                 <button
-                                  onClick={() => markStepDone(seq.id, 5)}
+                                  onClick={() => markStepDone(seq.id, 6)}
                                   disabled={updatingSequence === seq.id}
                                   className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
                                 >
@@ -1339,11 +1675,11 @@ export default function WarmFollowUpsPage() {
                             </div>
                           )}
 
-                          {/* Show call notes if step 4 was completed */}
-                          {seq.step4Notes && currentStep > 4 && (
+                          {/* Show call notes if step 5 (Call) was completed */}
+                          {seq.step5Notes && currentStep > 5 && (
                             <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
                               <p className="text-xs font-medium text-amber-800 mb-1">Call Notes:</p>
-                              <p className="text-sm text-amber-900">{seq.step4Notes}</p>
+                              <p className="text-sm text-amber-900">{seq.step5Notes}</p>
                             </div>
                           )}
                         </>
@@ -1361,10 +1697,127 @@ export default function WarmFollowUpsPage() {
       <footer className="bg-white border-t border-gray-200 mt-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <p className="text-center text-sm text-gray-500">
-            Warm Follow-ups CRM - 5-step multi-channel nurturing with 3-month cooldown cycles
+            Warm Follow-ups CRM - 6-step multi-channel nurturing with 3-month cooldown cycles
           </p>
         </div>
       </footer>
+
+      {/* Add Follow-up Modal */}
+      {showAddForm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold text-gray-900">Add Follow-up</h2>
+              <button
+                onClick={() => { setShowAddForm(false); setAddForm({ salesRepId: '', contactName: '', contactEmail: '', contactPhone: '', notes: '', crmLink: '', transcript: '' }); }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Sales Rep *</label>
+                <select
+                  value={addForm.salesRepId}
+                  onChange={(e) => setAddForm(f => ({ ...f, salesRepId: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                >
+                  <option value="">Select a rep...</option>
+                  {reps.map(rep => (
+                    <option key={rep.id} value={rep.id}>{rep.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Contact Name *</label>
+                <input
+                  type="text"
+                  value={addForm.contactName}
+                  onChange={(e) => setAddForm(f => ({ ...f, contactName: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                  placeholder="John Smith"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input
+                  type="email"
+                  value={addForm.contactEmail}
+                  onChange={(e) => setAddForm(f => ({ ...f, contactEmail: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                  placeholder="john@example.com"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                <input
+                  type="tel"
+                  value={addForm.contactPhone}
+                  onChange={(e) => setAddForm(f => ({ ...f, contactPhone: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                  placeholder="(555) 123-4567"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Pipedrive / CRM Link</label>
+                <input
+                  type="url"
+                  value={addForm.crmLink}
+                  onChange={(e) => setAddForm(f => ({ ...f, crmLink: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                  placeholder="https://app.pipedrive.com/deal/..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Intro Call Transcript</label>
+                <textarea
+                  value={addForm.transcript}
+                  onChange={(e) => setAddForm(f => ({ ...f, transcript: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                  rows={5}
+                  placeholder="Paste the intro call transcript here for AI email generation context..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea
+                  value={addForm.notes}
+                  onChange={(e) => setAddForm(f => ({ ...f, notes: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                  rows={3}
+                  placeholder="Any context about this lead..."
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => { setShowAddForm(false); setAddForm({ salesRepId: '', contactName: '', contactEmail: '', contactPhone: '', notes: '', crmLink: '', transcript: '' }); }}
+                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddFollowUp}
+                disabled={submitting || !addForm.salesRepId || !addForm.contactName.trim()}
+                className="flex-1 px-4 py-2 bg-rose-600 text-white text-sm font-medium rounded-lg hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {submitting ? 'Adding...' : 'Add Follow-up'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ChatBot for crafting follow-up messages */}
       <ChatBot

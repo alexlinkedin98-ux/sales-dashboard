@@ -463,8 +463,15 @@ export default function Dashboard() {
                       <TrendChart
                         data={filteredReps[0].weeklyData}
                         dataKey="closeRate"
-                        title="Close Rate"
+                        title="Sales Close Rate"
                         color="#F59E0B"
+                        format="percent"
+                      />
+                      <TrendChart
+                        data={filteredReps[0].weeklyData}
+                        dataKey="marketingCloseRate"
+                        title="Marketing Close Rate"
+                        color="#EC4899"
                         format="percent"
                       />
                       <TrendChart
@@ -539,6 +546,7 @@ export default function Dashboard() {
                     const totalMRR = rep.weeklyData.reduce((sum, w) => sum + w.thisMonthMRR, 0);
                     const showUpRate = totalCallsScheduled > 0 ? (totalCallsTaken / totalCallsScheduled) * 100 : 0;
                     const closeRate = totalProposals > 0 ? (totalClosed / totalProposals) * 100 : 0;
+                    const marketingCloseRate = totalCallsScheduled > 0 ? (totalClosed / totalCallsScheduled) * 100 : 0;
                     const acceptanceRate = totalCallsTaken > 0 ? (totalAccountsAudited / totalCallsTaken) * 100 : 0;
                     const mrrPerSale = totalClosed > 0 ? totalMRR / totalClosed : 0;
 
@@ -553,6 +561,7 @@ export default function Dashboard() {
                       totalMRR,
                       showUpRate,
                       closeRate,
+                      marketingCloseRate,
                       acceptanceRate,
                       mrrPerSale,
                     };
@@ -634,7 +643,7 @@ export default function Dashboard() {
                                 )}
                               </div>
                               <div className="bg-purple-50 rounded-lg p-3">
-                                <div className="text-xs text-gray-500 uppercase">Close Rate</div>
+                                <div className="text-xs text-gray-500 uppercase">Sales Close Rate</div>
                                 <div className="text-xl font-bold text-purple-700">
                                   {rep.closeRate.toFixed(1)}%
                                 </div>
@@ -643,6 +652,19 @@ export default function Dashboard() {
                                     rep.closeRate === maxCloseRate ? 'text-green-600' : 'text-red-600'
                                   }`}>
                                     {rep.closeRate === maxCloseRate ? 'Best' : `${calcVsBest(rep.closeRate, maxCloseRate).toFixed(0)}% vs best`}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="bg-pink-50 rounded-lg p-3">
+                                <div className="text-xs text-gray-500 uppercase">Marketing Close Rate</div>
+                                <div className="text-xl font-bold text-pink-700">
+                                  {rep.marketingCloseRate.toFixed(1)}%
+                                </div>
+                                {repSummaries.length > 1 && (
+                                  <div className={`text-xs mt-1 font-medium ${
+                                    rep.marketingCloseRate === Math.max(...repSummaries.map(r => r.marketingCloseRate)) ? 'text-green-600' : 'text-red-600'
+                                  }`}>
+                                    {rep.marketingCloseRate === Math.max(...repSummaries.map(r => r.marketingCloseRate)) ? 'Best' : `${calcVsBest(rep.marketingCloseRate, Math.max(...repSummaries.map(r => r.marketingCloseRate))).toFixed(0)}% vs best`}
                                   </div>
                                 )}
                               </div>
@@ -772,7 +794,9 @@ export default function Dashboard() {
                         const totalCallsTaken = rep.monthlySummaries.reduce((sum, m) => sum + m.totalCallsTaken, 0);
                         const totalProposals = rep.monthlySummaries.reduce((sum, m) => sum + m.totalProposals, 0);
                         const closeRate = totalProposals > 0 ? (totalClosed / totalProposals) * 100 : 0;
-                        return { name: rep.name, totalClosed, totalMRR, totalCallsTaken, closeRate };
+                        const totalCallsScheduled = rep.monthlySummaries.reduce((sum, m) => sum + m.totalCallsScheduled, 0);
+                        const marketingCloseRate = totalCallsScheduled > 0 ? (totalClosed / totalCallsScheduled) * 100 : 0;
+                        return { name: rep.name, totalClosed, totalMRR, totalCallsTaken, closeRate, marketingCloseRate };
                       });
 
                     // Find the best performer for each metric
@@ -823,7 +847,7 @@ export default function Dashboard() {
                             )}
                           </div>
                           <div className="bg-purple-50 rounded-lg p-4">
-                            <div className="text-xs text-gray-500 uppercase">Close Rate</div>
+                            <div className="text-xs text-gray-500 uppercase">Sales Close Rate</div>
                             <div className="text-2xl font-bold text-purple-700">
                               {rep.closeRate.toFixed(1)}%
                             </div>
@@ -832,6 +856,19 @@ export default function Dashboard() {
                                 rep.closeRate === maxCloseRate ? 'text-green-600' : 'text-red-600'
                               }`}>
                                 {rep.closeRate === maxCloseRate ? 'Best' : `${calcVsBest(rep.closeRate, maxCloseRate).toFixed(0)}% vs best`}
+                              </div>
+                            )}
+                          </div>
+                          <div className="bg-pink-50 rounded-lg p-4">
+                            <div className="text-xs text-gray-500 uppercase">Marketing Close Rate</div>
+                            <div className="text-2xl font-bold text-pink-700">
+                              {rep.marketingCloseRate.toFixed(1)}%
+                            </div>
+                            {repTotals.length > 1 && (
+                              <div className={`text-xs mt-1 font-medium ${
+                                rep.marketingCloseRate === Math.max(...repTotals.map(r => r.marketingCloseRate)) ? 'text-green-600' : 'text-red-600'
+                              }`}>
+                                {rep.marketingCloseRate === Math.max(...repTotals.map(r => r.marketingCloseRate)) ? 'Best' : `${calcVsBest(rep.marketingCloseRate, Math.max(...repTotals.map(r => r.marketingCloseRate))).toFixed(0)}% vs best`}
                               </div>
                             )}
                           </div>
@@ -901,7 +938,13 @@ export default function Dashboard() {
                       <ComparisonChart
                         reps={data.reps.filter(r => compareReps.has(r.name))}
                         dataKey="closeRate"
-                        title="Close Rate"
+                        title="Sales Close Rate"
+                        format="percent"
+                      />
+                      <ComparisonChart
+                        reps={data.reps.filter(r => compareReps.has(r.name))}
+                        dataKey="marketingCloseRate"
+                        title="Marketing Close Rate"
                         format="percent"
                       />
                       <ComparisonChart
