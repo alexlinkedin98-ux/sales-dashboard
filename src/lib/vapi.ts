@@ -33,6 +33,11 @@ export async function createOutboundCall(params: {
     }
   }
 
+  // Only allow US/Canada numbers (+1)
+  if (!normalizedPhone.startsWith('+1')) {
+    return { success: false, error: `Skipping non-US number: ${normalizedPhone}` };
+  }
+
   const firstName = params.contactName.split(' ')[0];
 
   try {
